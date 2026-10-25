@@ -1,0 +1,14 @@
+# Backend (Maven/Java)
+backend/target/
+*.class
+
+# Frontend (Node/Vite)
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.log
