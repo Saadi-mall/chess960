@@ -23,6 +23,7 @@ services:
       DB_NAME: chess960
       DB_USER: chess960
       DB_PASSWORD: chess960
+      STOCKFISH_PATH: /usr/games/stockfish
     ports:
       - "8080:8080"
     depends_on:

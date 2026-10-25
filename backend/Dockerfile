@@ -5,7 +5,10 @@ RUN mvn -B dependency:go-offline
 COPY src ./src
 RUN mvn -B package -DskipTests
 
-FROM eclipse-temurin:21-jre-alpine AS runtime
+FROM eclipse-temurin:21-jre-jammy AS runtime
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends stockfish \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /build/target/backend-*.jar app.jar
 EXPOSE 8080
