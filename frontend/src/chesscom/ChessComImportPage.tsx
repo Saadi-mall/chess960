@@ -25,7 +25,7 @@ export function ChessComImportPage() {
   }
 
   return (
-    <div className="chesscom-page">
+    <div className="chesscom-page centered-page">
       <h2>Chess.com Chess960 stats</h2>
       <p className="status-text">
         Looks up a player's public Chess.com games and counts their Chess960 results over

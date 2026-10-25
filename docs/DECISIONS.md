@@ -110,11 +110,21 @@ game only credits the opponent with a win if *they* have enough material to actu
 checkmate - if neither side does, it's a draw, per FIDE 6.9. This is a real nuance a naive
 "whoever didn't flag wins" implementation gets wrong.
 
-**Pieces are Unicode chess glyphs, not an imported art asset.** `CLAUDE.md` asked for a
-"custom SVG board"; rendering the standard Unicode chess characters as colored, outlined
-SVG `<text>` keeps the board fully self-contained with no external asset or licensing
-question to explain, while still looking considerably more finished than hand-drawn
-placeholder shapes would.
+**Pieces are the "Cburnett" SVG set, not Unicode glyphs.** The first pass rendered pieces
+as colored, outlined SVG `<text>` using the Unicode chess characters, specifically to keep
+the board self-contained with no external asset or licensing question to explain. After
+seeing it rendered, that read as noticeably rougher than the rest of the UI, so it was
+replaced with ["Cburnett"](https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces) -
+Colin M. L. Burnett's widely-used CC BY-SA 3.0 set (the same one lichess ships by default) -
+used unmodified, with the license and source cited in the README as that license requires.
+The board itself is still custom SVG; only the piece artwork is external.
+
+**Dark is the default theme, controlled by an explicit toggle, not `prefers-color-scheme`.**
+The first color pass used `prefers-color-scheme` to pick light or dark, which meant the
+actual default depended on each visitor's OS setting. Asked for dark specifically as the
+default regardless of OS preference, with light still available, the fix was a `data-theme`
+attribute set before first paint (reading a remembered choice from local storage, defaulting
+to dark) rather than a media query - see `theme.ts`.
 
 **The daily position is deterministic, not stored.** `Learn`'s "today's position" is
 `new Random(date.toEpochDay()).nextInt(960)` - same date always gives the same number,
@@ -159,6 +169,40 @@ decorative:
   share local storage, which incidentally exposed a second, real bug underneath: the
   rematch handoff left stale color/token in React state, because React Router doesn't
   remount a component on a param-only navigation (`/play/oldId` to `/play/newId`).
+- **A board that stayed permanently scrambled after the first move**, found while testing
+  drag-and-drop on a freshly redesigned layout. The back-rank "shuffle into place" entry
+  animation set random offsets, then relied on a cancellable `requestAnimationFrame` chain
+  to clear them - fragile under React StrictMode's mount-effect double-invoke: the first
+  invocation's cleanup cancelled that rAF before it ever fired, and the second invocation's
+  own guard (seeing it had "already handled" this fen) skipped rescheduling it entirely, so
+  the offsets never got cleared. Confirmed by reading the actual DOM transform values rather
+  than guessing from a screenshot - every back-rank piece had a random fractional
+  `translate()`, every pawn a clean integer one. Fixed by moving the "is this a new fen"
+  check to run during render (React's documented pattern for resetting derived state) so a
+  second StrictMode invocation just redoes the same harmless work instead of being able to
+  suppress the first invocation's cleanup step.
+- **A join request that silently fired twice**, found immediately after fixing the bug
+  above while re-testing with two browser tabs: the second tab got "Game already has two
+  players" even though it was the first thing to try joining. The join effect's
+  `cancelled` flag (the same React-recommended pattern used everywhere else in this app)
+  only discards a stale *result* - it doesn't stop the `POST /join` request, which has a
+  real server-side side effect, from actually firing. Under StrictMode's double-invoke, the
+  first invocation's request quietly succeeded and claimed the seat, then had its result
+  thrown away by its own cleanup; the second invocation's request then failed because the
+  seat it wanted was already taken. Fixed with a ref-guarded "only ever fire this request
+  once per component instance" check instead of a cancel-the-result pattern, since this
+  request isn't safe to fire twice regardless of which result gets kept.
+- **A board that rendered absurdly small**, caught the moment the redesigned layout was
+  first opened in-browser: a flex child sized with `width: 100%` but no `flex-basis`
+  collapsed instead of filling its row. Fixed with CSS container queries
+  (`container-type: size` on the board's flex cell, `100cqmin` on the board itself) instead
+  of fighting the flex sizing further.
+- **An invalid CSS value that silently did nothing.** `justify-content: stretch` was used
+  to stop the board page from being vertically centered on mobile - that's a valid Grid
+  value but not a real Flexbox one, so the browser dropped the whole declaration and the
+  centering rule it was meant to override stayed active, leaving a dead gap above the
+  board. Replaced with `margin: auto` on the centered pages instead, which doesn't depend
+  on overriding another rule at all.
 - **A Kubernetes crash-loop**, found by actually standing up a local `kind` cluster rather
   than trusting the YAML: the backend fails fast (and crash-loops) if Postgres isn't
   reachable yet at startup. Fixed with an init container, confirmed with a clean

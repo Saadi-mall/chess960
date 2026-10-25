@@ -4,6 +4,7 @@ import { ChessComImportPage } from "./chesscom/ChessComImportPage";
 import { LearnTab } from "./learn/LearnTab";
 import { CreateGameForm } from "./play/CreateGameForm";
 import { GameView } from "./play/GameView";
+import { ThemeToggle } from "./ThemeToggle";
 import "./App.css";
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
             Learn
           </NavLink>
         </nav>
+        <ThemeToggle />
       </header>
 
       <main className="app-main">

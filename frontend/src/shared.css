@@ -1,23 +1,24 @@
-/* Generic building blocks shared across tabs: forms, buttons, status text. */
+/* Generic building blocks shared across tabs: forms, buttons, status text, and the
+   board+sidebar page layout every board-driven tab (Play/Analyze/Learn) uses. */
 
 .field-group {
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  padding: 0.75rem 1rem 1rem;
-  margin-bottom: 1rem;
+  padding: 0.6rem 0.8rem 0.7rem;
+  margin-bottom: 0.6rem;
 }
 
 .field-group legend {
   padding: 0 0.4rem;
   color: var(--color-text-muted);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .field-group label {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.3rem 0;
+  padding: 0.25rem 0;
 }
 
 .number-input {
@@ -31,9 +32,14 @@
   color: var(--color-accent-contrast);
   border: none;
   border-radius: 8px;
-  padding: 0.7rem;
+  padding: 0.6rem;
   font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
+}
+
+.primary-button:hover:not(:disabled) {
+  filter: brightness(1.08);
 }
 
 .primary-button:disabled {
@@ -46,9 +52,13 @@
   color: var(--color-text);
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  padding: 0.5rem 1rem;
-  font-size: 0.95rem;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.9rem;
   cursor: pointer;
+}
+
+.secondary-button:hover {
+  border-color: var(--color-accent);
 }
 
 .status-text {
@@ -62,18 +72,88 @@
 }
 
 .error-text {
-  color: var(--color-accent);
+  color: #e2583f;
   text-align: center;
 }
 
 .move-history {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 0.3rem;
   list-style: none;
   padding: 0;
-  margin-top: 1rem;
+  margin: 0;
   font-family: var(--font-heading);
+  font-size: 0.85rem;
   color: var(--color-text-muted);
+}
+
+/* Self-centers vertically within .app-main's column flex (auto margins absorb the extra
+   space) without needing the parent to toggle anything based on which page is active. */
+.centered-page {
+  margin-top: auto;
+  margin-bottom: auto;
+  width: 100%;
+}
+
+/* The board+sidebar layout shared by Play/Analyze/Learn: the board dominates the
+   available height, a compact sidebar sits right next to it. */
+
+.board-page {
+  display: flex;
+  gap: 0.75rem;
+  height: 100%;
+  min-height: 0;
   justify-content: center;
+}
+
+.board-page-board {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  container-type: size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.board-page-sidebar {
+  flex: 0 0 260px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+  padding: 0.1rem 0.1rem 0.1rem 0;
+}
+
+.sidebar-card {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  padding: 0.6rem 0.75rem;
+}
+
+@media (max-width: 760px) {
+  .board-page {
+    flex-direction: column;
+    height: auto;
+    gap: 0.6rem;
+  }
+
+  .board-page-board {
+    /* Height tracks width (the board is square and the narrow viewport is the limiting
+       dimension) instead of reserving a fixed vh that leaves dead space above/below a
+       board that's actually sized by its width. */
+    aspect-ratio: 1;
+    max-height: 60vh;
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
+  .board-page-sidebar {
+    flex: 0 0 auto;
+    width: 100%;
+    overflow-y: visible;
+  }
 }

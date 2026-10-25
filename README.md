@@ -43,6 +43,17 @@ for normal use - the frontend talks to the backend through nginx, which proxies 
   player's public game history and see simple Chess960 stats: total games, win/loss/draw,
   win rate, and a breakdown by time class.
 
+## Credits
+
+The piece set is ["Cburnett"](https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces)
+by Colin M. L. Burnett, licensed
+[CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/deed.en). Used unmodified,
+via [lichess-org/lila](https://github.com/lichess-org/lila/tree/master/public/piece/cburnett)
+(itself redistributing the original files under the same license); the SVGs live at
+`frontend/public/pieces/cburnett/`. No other third-party visual assets are used - the board
+itself is custom SVG and the UI typeface is [Source Serif 4](https://fonts.google.com/specimen/Source+Serif+4)
+from Google Fonts (SIL Open Font License).
+
 ## Stack
 
 Java 21 + Spring Boot (REST + WebSocket) for the backend, a hand-written Chess960 move

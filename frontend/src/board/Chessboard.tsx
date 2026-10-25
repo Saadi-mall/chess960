@@ -3,14 +3,14 @@ import { squaresFromFen } from "./fen";
 import { fileOf, rankOf, squareAt, type LegalMove } from "./types";
 import "./Chessboard.css";
 
-const PIECE_GLYPH: Record<string, string> = {
-  p: "♟",
-  n: "♞",
-  b: "♝",
-  r: "♜",
-  q: "♛",
-  k: "♚",
-};
+/**
+ * The "Cburnett" piece set by Colin M. L. Burnett, CC BY-SA 3.0 - see README.md for the
+ * full attribution. Served as static files from public/pieces/cburnett.
+ */
+function pieceImageHref(piece: string): string {
+  const color = piece === piece.toUpperCase() ? "w" : "b";
+  return `/pieces/cburnett/${color}${piece.toUpperCase()}.svg`;
+}
 
 const SIZE = 100; // one square, in SVG user units
 const BOARD = SIZE * 8;
@@ -164,7 +164,7 @@ export function Chessboard({
     <div className="chessboard-wrap">
       <svg
         ref={svgRef}
-        viewBox={`-30 -30 ${BOARD + 60} ${BOARD + 60}`}
+        viewBox={`-18 -18 ${BOARD + 36} ${BOARD + 36}`}
         className="chessboard"
         role="group"
         aria-label="Chess board"
@@ -214,17 +214,14 @@ export function Chessboard({
 }
 
 function Piece({ piece }: { piece: string }) {
-  const isWhite = piece === piece.toUpperCase();
   return (
-    <text
-      className={isWhite ? "piece-white" : "piece-black"}
-      x={SIZE / 2}
-      y={SIZE / 2}
-      textAnchor="middle"
-      dominantBaseline="central"
-    >
-      {PIECE_GLYPH[piece.toLowerCase()]}
-    </text>
+    <image
+      href={pieceImageHref(piece)}
+      x={SIZE * 0.05}
+      y={SIZE * 0.05}
+      width={SIZE * 0.9}
+      height={SIZE * 0.9}
+    />
   );
 }
 
@@ -287,13 +284,13 @@ function renderCoordinates(orientation: "w" | "b") {
   for (let i = 0; i < 8; i++) {
     const file = orientation === "w" ? i : 7 - i;
     labels.push(
-      <text key={"f" + i} x={i * SIZE + SIZE / 2} y={BOARD + 18} className="coord" textAnchor="middle">
+      <text key={"f" + i} x={i * SIZE + SIZE / 2} y={BOARD + 11} className="coord" textAnchor="middle">
         {files[file]}
       </text>,
     );
     const rank = orientation === "w" ? 7 - i : i;
     labels.push(
-      <text key={"r" + i} x={-14} y={i * SIZE + SIZE / 2} className="coord" textAnchor="middle">
+      <text key={"r" + i} x={-9} y={i * SIZE + SIZE / 2} className="coord" textAnchor="middle">
         {rank + 1}
       </text>,
     );
@@ -316,18 +313,7 @@ function PromotionPicker({
       <div className="promotion-picker" onClick={(e) => e.stopPropagation()}>
         {options.map((option) => (
           <button key={option} onClick={() => onChoose(option)} className="promotion-option">
-            <svg viewBox="0 0 100 100" width="48" height="48">
-              <text
-                x={50}
-                y={50}
-                textAnchor="middle"
-                dominantBaseline="central"
-                className={color === "w" ? "piece-white" : "piece-black"}
-                style={{ fontSize: 72 }}
-              >
-                {PIECE_GLYPH[option]}
-              </text>
-            </svg>
+            <img src={pieceImageHref(color === "w" ? option.toUpperCase() : option)} alt={option} width={40} height={40} />
           </button>
         ))}
       </div>
@@ -335,44 +321,65 @@ function PromotionPicker({
   );
 }
 
+type EntryOffsets = Map<string, { dx: number; dy: number; delayMs: number }>;
+
+function computeEntryOffsets(fen: string): EntryOffsets {
+  const squares = squaresFromFen(fen);
+  const next: EntryOffsets = new Map();
+  for (const [square, piece] of Object.entries(squares)) {
+    const rank = rankOf(square);
+    if (rank !== 0 && rank !== 7) continue; // only the shuffled back ranks
+    if (!piece) continue;
+    const angle = Math.random() * Math.PI * 2;
+    const distance = 260 + Math.random() * 120;
+    next.set(square, {
+      dx: Math.cos(angle) * distance,
+      dy: Math.sin(angle) * distance,
+      delayMs: Math.random() * 150,
+    });
+  }
+  return next;
+}
+
 /**
  * Computes a one-time random offset per back-rank piece whenever `fen` changes (and
  * `enabled`), then clears it a tick later so the piece transitions from that offset to
  * (0, 0) - i.e. shuffles into place. Pawns are left alone: in Chess960 only the back rank
  * is scrambled.
+ *
+ * The "detect a new fen" half of this runs during render (React's documented pattern for
+ * resetting derived state from a prop change) rather than in an effect, specifically
+ * because an effect-only version is fragile under StrictMode's mount-effect double-invoke:
+ * a version that schedules a cancellable rAF chain and guards against re-scheduling with a
+ * "have we already seen this fen" ref can have its first (cancelled) invocation's guard
+ * suppress the second invocation's attempt to reschedule, permanently losing the "settle
+ * back to zero" step. Keeping entry/settled as plain state updated unconditionally
+ * sidesteps that - a second invocation just re-does the same work harmlessly.
  */
 function useBackRankEntryAnimation(fen: string, enabled: boolean) {
-  const [offsets, setOffsets] = useState<Map<string, { dx: number; dy: number; delayMs: number }>>(
-    new Map(),
-  );
-  const previousFen = useRef<string | null>(null);
+  const [tracked, setTracked] = useState(() => ({
+    fen,
+    entering: enabled,
+    offsets: enabled ? computeEntryOffsets(fen) : new Map<string, never>(),
+  }));
+
+  if (tracked.fen !== fen) {
+    setTracked({
+      fen,
+      entering: enabled,
+      offsets: enabled ? computeEntryOffsets(fen) : new Map(),
+    });
+  }
 
   useEffect(() => {
-    if (!enabled || previousFen.current === fen) {
-      previousFen.current = fen;
-      return;
-    }
-    previousFen.current = fen;
+    if (!tracked.entering) return;
+    const timeout = setTimeout(() => {
+      setTracked((t) => (t.fen === fen ? { ...t, entering: false } : t));
+    }, 20);
+    return () => clearTimeout(timeout);
+  }, [tracked.entering, fen]);
 
-    const squares = squaresFromFen(fen);
-    const next = new Map<string, { dx: number; dy: number; delayMs: number }>();
-    for (const [square, piece] of Object.entries(squares)) {
-      const rank = rankOf(square);
-      if (rank !== 0 && rank !== 7) continue; // only the shuffled back ranks
-      if (!piece) continue;
-      const angle = Math.random() * Math.PI * 2;
-      const distance = 260 + Math.random() * 120;
-      next.set(square, {
-        dx: Math.cos(angle) * distance,
-        dy: Math.sin(angle) * distance,
-        delayMs: Math.random() * 150,
-      });
-    }
-    setOffsets(next);
-
-    const frame = requestAnimationFrame(() => requestAnimationFrame(() => setOffsets(new Map())));
-    return () => cancelAnimationFrame(frame);
-  }, [fen, enabled]);
-
-  return offsets;
+  return tracked.entering ? tracked.offsets : EMPTY_OFFSETS;
 }
+
+const EMPTY_OFFSETS: EntryOffsets = new Map();

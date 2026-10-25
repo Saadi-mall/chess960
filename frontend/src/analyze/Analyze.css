@@ -1,30 +1,24 @@
 .analyze-setup {
   max-width: 420px;
-  margin: 0 auto;
+  margin-left: auto;
+  margin-right: auto;
   text-align: left;
 }
 
 .analyze-chesscom-link {
   text-align: center;
-  margin-top: 1rem;
+  margin-top: 0.75rem;
 }
 
 .analyze-chesscom-link a {
   color: var(--color-text-muted);
-  font-size: 0.9rem;
-}
-
-.analyze-view {
-  max-width: 680px;
-  margin: 0 auto;
-  text-align: center;
+  font-size: 0.85rem;
 }
 
 .overview-card {
   border: 1px solid var(--color-border);
-  border-radius: 10px;
-  padding: 1rem 1.25rem;
-  margin-bottom: 1.25rem;
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
   text-align: left;
   background: var(--color-surface);
 }
@@ -32,105 +26,80 @@
 .overview-card h2 {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  margin-bottom: 0.75rem;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.05rem;
 }
 
 .overview-badge {
   font-family: var(--font-body);
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--color-accent-contrast);
   background: var(--color-accent);
   border-radius: 999px;
-  padding: 0.15rem 0.55rem;
+  padding: 0.1rem 0.5rem;
 }
 
 .overview-sides {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
+  gap: 0 0.75rem;
 }
 
 .overview-side h3 {
   font-family: var(--font-body);
-  font-size: 0.85rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--color-text-muted);
-  margin: 0 0 0.4rem;
+  margin: 0.4rem 0 0.2rem;
 }
 
 .overview-side dl {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
 .overview-side dt {
   color: var(--color-text-muted);
-  margin-top: 0.5rem;
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
 }
 
 .overview-side dd {
   margin: 0;
 }
 
-.analyze-board-row {
+.eval-bar-card {
   display: flex;
-  align-items: stretch;
-  gap: 1rem;
-  justify-content: center;
-}
-
-.eval-bar-row {
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 0.4rem;
-  width: 2.5rem;
+  gap: 0.5rem;
 }
 
 .eval-bar {
   flex: 1;
-  width: 100%;
-  background: var(--color-text);
+  height: 0.7rem;
+  background: #1a1a1a;
   border-radius: 4px;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
   overflow: hidden;
+  border: 1px solid var(--color-border);
 }
 
 .eval-bar-white {
-  width: 100%;
-  background: var(--color-surface);
-  transition: height 400ms ease;
+  height: 100%;
+  background: #f1e6d2;
+  transition: width 400ms ease;
 }
 
 .eval-label {
   font-family: var(--font-heading);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--color-text-muted);
   white-space: nowrap;
-}
-
-@media (max-width: 640px) {
-  .overview-sides {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
-  }
-
-  .analyze-board-row {
-    flex-direction: row;
-  }
-
-  .eval-bar-row {
-    width: 1.75rem;
-  }
-
-  .eval-label {
-    writing-mode: vertical-rl;
-  }
+  flex-shrink: 0;
+  min-width: 2.2rem;
+  text-align: right;
 }

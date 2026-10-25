@@ -61,7 +61,7 @@ export function AnalyzeTab() {
 
   if (!current || !overview) {
     return (
-      <div className="analyze-setup">
+      <div className="analyze-setup centered-page">
         <h2>Set up a position</h2>
         <fieldset className="field-group">
           <legend>Starting position</legend>
@@ -101,45 +101,47 @@ export function AnalyzeTab() {
   const gameOver = current.status !== "IN_PROGRESS";
 
   return (
-    <div className="analyze-view">
-      <OverviewCard overview={overview} />
-
-      <div className="analyze-board-row">
+    <div className="board-page">
+      <div className="board-page-board">
         <Chessboard
           fen={current.fen}
           legalMoves={gameOver ? [] : current.legalMoves}
           onMove={handleMove}
           animateEntry={moveHistory.length === 0}
         />
-        <EvaluationBar evaluation={current.evaluation} turn={current.turn} />
       </div>
 
-      {error && <p className="error-text">{error}</p>}
+      <div className="board-page-sidebar">
+        <EvaluationBar evaluation={current.evaluation} turn={current.turn} />
+        <OverviewCard overview={overview} />
 
-      {gameOver && (
-        <p className="status-text status-over">
-          {STATUS_LABEL[current.status] ?? current.status}
-          {current.winner && ` — ${current.winner} wins`}
-        </p>
-      )}
+        {error && <p className="error-text">{error}</p>}
 
-      {moveHistory.length > 0 && (
-        <ol className="move-history">
-          {moveHistory.map((m, i) => (
-            <li key={i}>{m}</li>
-          ))}
-        </ol>
-      )}
+        {gameOver && (
+          <p className="status-text status-over">
+            {STATUS_LABEL[current.status] ?? current.status}
+            {current.winner && ` — ${current.winner} wins`}
+          </p>
+        )}
 
-      <button
-        className="secondary-button"
-        onClick={() => {
-          setCurrent(null);
-          setOverview(null);
-        }}
-      >
-        New position
-      </button>
+        {moveHistory.length > 0 && (
+          <ol className="move-history sidebar-card">
+            {moveHistory.map((m, i) => (
+              <li key={i}>{m}</li>
+            ))}
+          </ol>
+        )}
+
+        <button
+          className="secondary-button"
+          onClick={() => {
+            setCurrent(null);
+            setOverview(null);
+          }}
+        >
+          New position
+        </button>
+      </div>
     </div>
   );
 }

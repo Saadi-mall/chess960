@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Chessboard } from "../board/Chessboard";
 import { ClockDisplay } from "./ClockDisplay";
@@ -24,13 +24,22 @@ export function GameView() {
   const [seat, setSeatState] = useState<StoredSeat | null>(() => getSeat(gameId));
   const [joinError, setJoinError] = useState<string | null>(null);
   const [resolving, setResolving] = useState(!seat);
+  // POST /join claims a seat server-side - not idempotent. A plain "cancelled" flag set
+  // from the effect's cleanup doesn't stop that request from actually firing, only from
+  // applying its result, so under StrictMode's mount-effect double-invoke the first
+  // (real) join quietly succeeds and gets its result thrown away, then the second join
+  // attempt fails because the seat it wanted is already taken. This ref instead makes
+  // sure the request itself only ever fires once per component instance.
+  const joinAttempted = useRef(false);
 
   useEffect(() => {
     if (!gameId || seat) {
       setResolving(false);
       return;
     }
-    let cancelled = false;
+    if (joinAttempted.current) return;
+    joinAttempted.current = true;
+
     (async () => {
       try {
         const info = await getGameInfo(gameId);
@@ -38,17 +47,14 @@ export function GameView() {
           const joined = await joinGame(gameId);
           const newSeat: StoredSeat = { token: joined.token, color: joined.color };
           setSeat(gameId, newSeat);
-          if (!cancelled) setSeatState(newSeat);
+          setSeatState(newSeat);
         }
       } catch (e) {
-        if (!cancelled) setJoinError(e instanceof Error ? e.message : "Could not join this game");
+        setJoinError(e instanceof Error ? e.message : "Could not join this game");
       } finally {
-        if (!cancelled) setResolving(false);
+        setResolving(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
   }, [gameId, seat]);
 
   const socket = useGameSocket(gameId, seat?.token ?? null);
@@ -78,82 +84,107 @@ export function GameView() {
   const gameOver = state.status !== "WAITING_FOR_OPPONENT" && state.status !== "IN_PROGRESS";
 
   return (
-    <div className="game-view">
-      {state.status === "WAITING_FOR_OPPONENT" && (
-        <div className="waiting-banner">
-          <p>Share this link with a friend to start:</p>
-          <div className="share-row">
-            <input readOnly value={window.location.href} onFocus={(e) => e.currentTarget.select()} />
-            <button onClick={() => navigator.clipboard.writeText(window.location.href)}>Copy</button>
-          </div>
-        </div>
-      )}
-
-      <div className="clocks">
-        <ClockDisplay
-          label="Black"
-          millis={state.blackMillis}
-          isTicking={state.status === "IN_PROGRESS" && state.turn === "black"}
-        />
-        <ClockDisplay
-          label="White"
-          millis={state.whiteMillis}
-          isTicking={state.status === "IN_PROGRESS" && state.turn === "white"}
+    <div className="board-page">
+      <div className="board-page-board">
+        <Chessboard
+          fen={state.fen}
+          legalMoves={isMyTurn ? state.legalMoves : []}
+          orientation={myColor === "black" ? "b" : "w"}
+          onMove={(move) => socket.sendMove(move.from, move.to, move.promotion)}
+          animateEntry={state.moveHistory.length === 0}
         />
       </div>
 
-      <Chessboard
-        fen={state.fen}
-        legalMoves={isMyTurn ? state.legalMoves : []}
-        orientation={myColor === "black" ? "b" : "w"}
-        onMove={(move) => socket.sendMove(move.from, move.to, move.promotion)}
-        animateEntry={state.moveHistory.length === 0}
-      />
-
-      {socket.error && <p className="error-text">{socket.error}</p>}
-
-      {gameOver && (
-        <p className="status-text status-over">
-          {STATUS_LABEL[state.status] ?? state.status}
-          {state.winner && ` — ${state.winner} wins`}
-        </p>
-      )}
-
-      {isPlayer && state.status === "IN_PROGRESS" && (
-        <div className="game-controls">
-          <button onClick={socket.resign}>Resign</button>
-          {state.drawOfferBy === myColor ? (
-            <span className="status-text">Draw offered, waiting...</span>
-          ) : state.drawOfferBy ? (
-            <>
-              <button onClick={() => socket.respondDraw(true)}>Accept draw</button>
-              <button onClick={() => socket.respondDraw(false)}>Decline</button>
-            </>
-          ) : (
-            <button onClick={socket.offerDraw}>Offer draw</button>
-          )}
+      <div className="board-page-sidebar">
+        <div className="sidebar-card clocks">
+          <ClockDisplay
+            label="Black"
+            millis={state.blackMillis}
+            isTicking={state.status === "IN_PROGRESS" && state.turn === "black"}
+          />
+          <ClockDisplay
+            label="White"
+            millis={state.whiteMillis}
+            isTicking={state.status === "IN_PROGRESS" && state.turn === "white"}
+          />
         </div>
-      )}
 
-      {isPlayer && gameOver && (
-        <div className="game-controls">
-          {socket.rematchOfferedBy === myColor ? (
-            <span className="status-text">Rematch offered, waiting...</span>
-          ) : socket.rematchOfferedBy ? (
-            <button onClick={socket.requestRematch}>Accept rematch</button>
-          ) : (
-            <button onClick={socket.requestRematch}>Rematch</button>
-          )}
-        </div>
-      )}
+        {state.status === "WAITING_FOR_OPPONENT" && (
+          <div className="sidebar-card waiting-banner">
+            <p>Share this link with a friend:</p>
+            <div className="share-row">
+              <input
+                readOnly
+                value={window.location.href}
+                onFocus={(e) => e.currentTarget.select()}
+              />
+              <button
+                className="secondary-button"
+                onClick={() => navigator.clipboard.writeText(window.location.href)}
+              >
+                Copy
+              </button>
+            </div>
+          </div>
+        )}
 
-      {state.moveHistory.length > 0 && (
-        <ol className="move-history">
-          {state.moveHistory.map((m, i) => (
-            <li key={i}>{m}</li>
-          ))}
-        </ol>
-      )}
+        {socket.error && <p className="error-text">{socket.error}</p>}
+
+        {gameOver && (
+          <p className="status-text status-over">
+            {STATUS_LABEL[state.status] ?? state.status}
+            {state.winner && ` — ${state.winner} wins`}
+          </p>
+        )}
+
+        {isPlayer && state.status === "IN_PROGRESS" && (
+          <div className="game-controls">
+            <button className="secondary-button" onClick={socket.resign}>
+              Resign
+            </button>
+            {state.drawOfferBy === myColor ? (
+              <span className="status-text">Draw offered...</span>
+            ) : state.drawOfferBy ? (
+              <>
+                <button className="secondary-button" onClick={() => socket.respondDraw(true)}>
+                  Accept draw
+                </button>
+                <button className="secondary-button" onClick={() => socket.respondDraw(false)}>
+                  Decline
+                </button>
+              </>
+            ) : (
+              <button className="secondary-button" onClick={socket.offerDraw}>
+                Offer draw
+              </button>
+            )}
+          </div>
+        )}
+
+        {isPlayer && gameOver && (
+          <div className="game-controls">
+            {socket.rematchOfferedBy === myColor ? (
+              <span className="status-text">Rematch offered...</span>
+            ) : socket.rematchOfferedBy ? (
+              <button className="primary-button" onClick={socket.requestRematch}>
+                Accept rematch
+              </button>
+            ) : (
+              <button className="primary-button" onClick={socket.requestRematch}>
+                Rematch
+              </button>
+            )}
+          </div>
+        )}
+
+        {state.moveHistory.length > 0 && (
+          <ol className="move-history sidebar-card">
+            {state.moveHistory.map((m, i) => (
+              <li key={i}>{m}</li>
+            ))}
+          </ol>
+        )}
+      </div>
     </div>
   );
 }

@@ -40,7 +40,7 @@ export function CreateGameForm() {
   }
 
   return (
-    <div className="create-game">
+    <div className="create-game centered-page">
       <h2>Start a game</h2>
 
       <fieldset className="field-group">

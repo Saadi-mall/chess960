@@ -1,36 +1,92 @@
 .app {
-  max-width: 720px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0.6rem 1rem;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 1.5rem;
 }
 
 .app-header {
-  text-align: center;
-  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
 }
 
 .app-header h1 {
-  margin-bottom: 0.75rem;
+  font-size: 1.3rem;
+  margin: 0;
+  white-space: nowrap;
 }
 
 .tabs {
   display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-  border-bottom: 1px solid var(--color-border);
-  padding-bottom: 0.75rem;
+  gap: 0.25rem;
+  flex: 1;
 }
 
 .tabs a {
   color: var(--color-text-muted);
   text-decoration: none;
-  padding: 0.4rem 0.9rem;
+  padding: 0.35rem 0.8rem;
   border-radius: 6px;
   font-family: var(--font-heading);
+  font-size: 0.95rem;
+}
+
+.tabs a:hover {
+  color: var(--color-text);
 }
 
 .tabs a.active {
-  color: var(--color-text);
-  background: var(--board-highlight);
+  color: var(--color-accent-contrast);
+  background: var(--color-accent);
 }
 
+.theme-toggle {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-radius: 6px;
+  width: 2.1rem;
+  height: 2.1rem;
+  font-size: 1rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.theme-toggle:hover {
+  border-color: var(--color-accent);
+}
+
+.app-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding-top: 0.6rem;
+  overflow: auto;
+}
+
+.status-text {
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .app {
+    padding: 0.5rem 0.6rem;
+  }
+
+  .app-header h1 {
+    display: none;
+  }
+
+  .tabs a {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.9rem;
+  }
+}

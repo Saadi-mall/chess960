@@ -31,9 +31,9 @@ export function EvaluationBar({ evaluation, turn }: EvaluationBarProps) {
   }
 
   return (
-    <div className="eval-bar-row">
+    <div className="eval-bar-card sidebar-card">
       <div className="eval-bar">
-        <div className="eval-bar-white" style={{ height: `${whiteFraction * 100}%` }} />
+        <div className="eval-bar-white" style={{ width: `${whiteFraction * 100}%` }} />
       </div>
       <span className="eval-label">{label}</span>
     </div>

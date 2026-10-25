@@ -120,86 +120,86 @@ export function LearnTab() {
   if (error) return <p className="error-text">{error}</p>;
   if (step === "LOADING" || !overview) return <p className="status-text">Loading today's lesson...</p>;
 
+  const streakLine = (
+    <p className="learn-streak">
+      {streak.currentStreak > 0
+        ? `${streak.currentStreak} day streak`
+        : "Complete today's lesson to start a streak"}
+    </p>
+  );
+
+  if (step === "OVERVIEW") {
+    return (
+      <div className="learn-intro centered-page">
+        {streakLine}
+        <OverviewCard overview={overview} />
+        <p className="learn-prompt">
+          Today's position is #{overview.positionNumber ?? "?"}. A few facts about it above,
+          then find the best moves.
+        </p>
+        <button className="primary-button" onClick={advance}>
+          Start
+        </button>
+      </div>
+    );
+  }
+
+  if (step === "DONE") {
+    return (
+      <div className="learn-intro centered-page">
+        {streakLine}
+        <p className="learn-prompt">
+          Lesson complete - {streak.currentStreak} day{streak.currentStreak === 1 ? "" : "s"} in a
+          row.
+        </p>
+        <button className="primary-button" onClick={handlePlayWithFriend} disabled={creatingGame}>
+          {creatingGame ? "Starting..." : "Play this position with a friend"}
+        </button>
+      </div>
+    );
+  }
+
+  const prompt =
+    step === "WEAKEST_SQUARE"
+      ? "Click the White piece with the fewest defenders."
+      : step === "WHITE_MOVE"
+        ? "Find White's best first move."
+        : "Now find Black's best reply.";
+  const nextLabel = step === "BLACK_MOVE" ? "Finish" : "Next";
+
   return (
-    <div className="learn-view">
-      <p className="learn-streak">
-        {streak.currentStreak > 0
-          ? `${streak.currentStreak} day streak`
-          : "Complete today's lesson to start a streak"}
-      </p>
-
-      {step === "OVERVIEW" && (
-        <>
-          <OverviewCard overview={overview} />
-          <p className="learn-prompt">
-            Today's position is #{overview.positionNumber ?? "?"}. Let's look at a few facts
-            about it, then find the best moves.
-          </p>
-          <button className="primary-button" onClick={advance}>
-            Start
-          </button>
-        </>
-      )}
-
-      {step === "WEAKEST_SQUARE" && (
-        <>
-          <p className="learn-prompt">Click the White piece with the fewest defenders.</p>
+    <div className="board-page">
+      <div className="board-page-board">
+        {step === "WEAKEST_SQUARE" && (
           <Chessboard fen={fen} legalMoves={[]} onSquareClick={handleWeakestSquareGuess} />
-          {feedback && <p className="learn-feedback">{feedback}</p>}
-          {answered && (
-            <button className="primary-button" onClick={advance}>
-              Next
-            </button>
-          )}
-        </>
-      )}
-
-      {step === "WHITE_MOVE" && (
-        <>
-          <p className="learn-prompt">Find White's best first move.</p>
+        )}
+        {step === "WHITE_MOVE" && (
           <Chessboard
             fen={fen}
             legalMoves={answered ? [] : legalMoves}
             onMove={(move) => handleMoveGuess(move, "white")}
           />
-          {feedback && <p className="learn-feedback">{feedback}</p>}
-          {answered && (
-            <button className="primary-button" onClick={advance}>
-              Next
-            </button>
-          )}
-        </>
-      )}
-
-      {step === "BLACK_MOVE" && (
-        <>
-          <p className="learn-prompt">Now find Black's best reply.</p>
+        )}
+        {step === "BLACK_MOVE" && (
           <Chessboard
             fen={fen}
             legalMoves={answered ? [] : legalMoves}
             orientation="b"
             onMove={(move) => handleMoveGuess(move, "black")}
           />
-          {feedback && <p className="learn-feedback">{feedback}</p>}
-          {answered && (
-            <button className="primary-button" onClick={advance}>
-              Finish
-            </button>
-          )}
-        </>
-      )}
+        )}
+      </div>
 
-      {step === "DONE" && (
-        <>
-          <p className="learn-prompt">
-            Lesson complete - {streak.currentStreak} day{streak.currentStreak === 1 ? "" : "s"} in a
-            row.
-          </p>
-          <button className="primary-button" onClick={handlePlayWithFriend} disabled={creatingGame}>
-            {creatingGame ? "Starting..." : "Play this position with a friend"}
+      <div className="board-page-sidebar">
+        {streakLine}
+        <p className="learn-prompt sidebar-card">{prompt}</p>
+        {feedback && <p className="learn-feedback sidebar-card">{feedback}</p>}
+        {answered && (
+          <button className="primary-button" onClick={advance}>
+            {nextLabel}
           </button>
-        </>
-      )}
+        )}
+      </div>
     </div>
   );
 }

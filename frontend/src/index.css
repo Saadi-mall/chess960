@@ -1,55 +1,62 @@
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
 
-  --color-bg: #faf5eb;
-  --color-surface: #ffffff;
-  --color-text: #2a241d;
-  --color-text-muted: #6b6052;
-  --color-border: #e3d9c6;
-  --color-accent: #8a3324;
-  --color-accent-contrast: #fff8ee;
+  /* Dark is the default theme, not a prefers-color-scheme override - see theme.ts.
+     [data-theme="light"] below is the only other state. */
+  --color-bg: #151109;
+  --color-surface: #1f1910;
+  --color-surface-raised: #271f14;
+  --color-text: #f1e6d2;
+  --color-text-muted: #a3927a;
+  --color-border: #3a2f1f;
+  --color-accent: #e3a43c;
+  --color-accent-contrast: #1a1409;
+  --color-accent-muted: rgba(227, 164, 60, 0.16);
 
-  --board-light: #efe5d1;
-  --board-dark: #8a7355;
-  --board-highlight: rgba(138, 51, 36, 0.35);
-  --board-selected: rgba(138, 51, 36, 0.55);
-  --board-coord: #a99a80;
-
-  /* Piece colors are fixed regardless of light/dark UI theme - a white piece must always
-     read as white, a black piece as black, or flipping themes would be confusing mid-game. */
-  --piece-white: #f7f1e3;
-  --piece-white-outline: #2a241d;
-  --piece-black: #2a241d;
-  --piece-black-outline: #f7f1e3;
+  --board-light: #eadbb3;
+  --board-dark: #7a5330;
+  --board-highlight: rgba(227, 164, 60, 0.45);
+  --board-selected: rgba(227, 164, 60, 0.65);
 
   --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-heading: "Source Serif 4", Georgia, serif;
 
+  --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.35);
+
   font-family: var(--font-body);
   font-size: 16px;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-bg: #1c1812;
-    --color-surface: #262019;
-    --color-text: #ece3d3;
-    --color-text-muted: #ab9d87;
-    --color-border: #3a3127;
-    --color-accent: #cf7a66;
-    --color-accent-contrast: #1c1812;
+:root[data-theme="light"] {
+  color-scheme: light;
 
-    --board-light: #3a322a;
-    --board-dark: #211b15;
-    --board-highlight: rgba(207, 122, 102, 0.3);
-    --board-selected: rgba(207, 122, 102, 0.5);
-    --board-coord: #6b6052;
-  }
+  --color-bg: #f7f0e2;
+  --color-surface: #fffdf8;
+  --color-surface-raised: #ffffff;
+  --color-text: #241c10;
+  --color-text-muted: #6e5f47;
+  --color-border: #e1d3b4;
+  --color-accent: #a8631a;
+  --color-accent-contrast: #fff8ec;
+  --color-accent-muted: rgba(168, 99, 26, 0.12);
+
+  --board-light: #f1e3c6;
+  --board-dark: #8b5e34;
+  --board-highlight: rgba(168, 99, 26, 0.4);
+  --board-selected: rgba(168, 99, 26, 0.6);
+
+  --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.08);
 }
 
 * {
   box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
 }
 
 body {
@@ -63,7 +70,7 @@ h2,
 h3 {
   font-family: var(--font-heading);
   font-weight: 600;
-  margin: 0 0 0.5em;
+  margin: 0 0 0.4em;
 }
 
 button {
