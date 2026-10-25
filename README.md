@@ -1,0 +1,87 @@
+# Chess960
+
+A Chess960 (Fischer Random) web app: play it live with a friend, set up any starting
+position and analyze it with Stockfish, or work through a daily puzzle-style lesson.
+
+Built for a Chess.com take-home. See [docs/DECISIONS.md](docs/DECISIONS.md) for the main
+design decisions, trade-offs, time breakdown, and what's next; see
+[k8s/README.md](k8s/README.md) for running it on Kubernetes instead of Docker Compose.
+
+## Run it
+
+```bash
+docker compose up --build
+```
+
+Then open **http://localhost:3000**. That's the whole setup - one command brings up
+Postgres, the Java backend (with Stockfish installed inside its container), and the React
+frontend together.
+
+The backend alone is reachable at `http://localhost:8080` if you want to hit its REST API
+directly; Postgres is exposed on `5432` for the same reason. Neither needs to be touched
+for normal use - the frontend talks to the backend through nginx, which proxies `/api` and
+`/ws` to it.
+
+## What it does
+
+- **Play** - create a game (a random Chess960 position, a chosen number 0-959, or today's
+  lesson position), pick a time control, and share a link with a friend. Live play over
+  WebSockets: the server validates every move, runs the clocks, and detects every way a
+  game can end (checkmate, stalemate, insufficient material, the 50-move rule, threefold
+  repetition, resignation, timeout). Supports resigning, draw offers, and rematches (with
+  colors swapped), and rejoining after a refresh.
+- **Analyze** - set up any of the 960 legal starting positions, see an overview card of
+  computed facts about it (undefended pawns, bishops already on a long diagonal, how many
+  of each side's own pieces are blocking their fastest castling route, a weakest-square
+  score), then play out moves against a live Stockfish evaluation.
+- **Learn** - one daily position, the same for everyone, picked deterministically from the
+  date. A short guided lesson: the overview card, find the weakest square, find White's
+  best first move, find Black's best reply (the lesson always advances along Stockfish's
+  actual line, whether your guess was right or not), then a button to play that exact
+  position with a friend. Keeps a daily streak in your browser's local storage.
+- **Chess.com import** (optional, linked from the Analyze tab) - look up a Chess.com
+  player's public game history and see simple Chess960 stats: total games, win/loss/draw,
+  win rate, and a breakdown by time class.
+
+## Stack
+
+Java 21 + Spring Boot (REST + WebSocket) for the backend, a hand-written Chess960 move
+generator (no chess library - see [docs/DECISIONS.md](docs/DECISIONS.md)), PostgreSQL with
+Flyway migrations, Stockfish running inside the backend container, React + TypeScript
+(Vite) with plain CSS for the frontend, Docker Compose for local dev, Kubernetes manifests
+in `k8s/` for a cluster deployment.
+
+## Running the tests
+
+Backend (76 tests - the rules engine's perft suite, castling edge cases, the position
+analyzer, the game/clock/draw/rematch logic, the Stockfish UCI wrapper against the real
+binary, and the Chess.com import's classification logic):
+
+```bash
+cd backend
+mvn test
+```
+
+This needs a JDK 21 and a `stockfish` binary on your `PATH` (`brew install stockfish` on
+macOS); without Stockfish, everything except `StockfishEngineTest` still passes.
+
+Frontend (type checking, linting, and a production build - there's no frontend unit test
+suite; the UI was verified manually in-browser through each tab, including click-to-move,
+drag-to-move, the promotion picker, board flipping, and mobile widths):
+
+```bash
+cd frontend
+npm install
+npm run build   # tsc -b && vite build
+npx oxlint
+```
+
+## Project layout
+
+```
+backend/    Spring Boot app: rules engine, game server, position analyzer,
+            Stockfish integration, Chess.com import, REST + WebSocket APIs
+frontend/   React + TypeScript app: the board, and the Play/Analyze/Learn tabs
+k8s/        Kubernetes manifests (see k8s/README.md)
+docs/       Decisions, trade-offs, and the time log this app was built with
+```
