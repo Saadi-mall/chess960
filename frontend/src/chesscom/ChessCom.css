@@ -1,0 +1,89 @@
+.chesscom-page {
+  max-width: 480px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.chesscom-form {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.chesscom-form input {
+  flex: 1;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 1rem;
+}
+
+.chesscom-form .primary-button {
+  width: auto;
+  padding: 0.5rem 1.1rem;
+}
+
+.chesscom-stats {
+  margin-top: 1.5rem;
+}
+
+.chesscom-summary {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.chesscom-summary > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.chesscom-number {
+  font-family: var(--font-heading);
+  font-size: 1.6rem;
+}
+
+.chesscom-summary span:last-child {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.chesscom-time-classes {
+  display: flex;
+  justify-content: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.chesscom-time-classes div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.chesscom-time-classes dt {
+  text-transform: capitalize;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.chesscom-time-classes dd {
+  margin: 0;
+  font-family: var(--font-heading);
+}
+
+.chesscom-back {
+  margin-top: 2rem;
+}
+
+.chesscom-back a {
+  color: var(--color-accent);
+}

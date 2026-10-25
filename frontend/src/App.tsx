@@ -1,5 +1,6 @@
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { AnalyzeTab } from "./analyze/AnalyzeTab";
+import { ChessComImportPage } from "./chesscom/ChessComImportPage";
 import { LearnTab } from "./learn/LearnTab";
 import { CreateGameForm } from "./play/CreateGameForm";
 import { GameView } from "./play/GameView";
@@ -30,6 +31,7 @@ function App() {
           <Route path="/play/:gameId" element={<GameView />} />
           <Route path="/analyze" element={<AnalyzeTab />} />
           <Route path="/learn" element={<LearnTab />} />
+          <Route path="/chesscom-import" element={<ChessComImportPage />} />
         </Routes>
       </main>
     </div>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Chessboard } from "../board/Chessboard";
 import type { LegalMove } from "../board/types";
 import { fetchDailyPosition, fetchStartingPosition, playMove } from "./api";
@@ -90,6 +91,9 @@ export function AnalyzeTab() {
         <button className="primary-button" onClick={loadPosition} disabled={loading}>
           {loading ? "Loading..." : "Analyze"}
         </button>
+        <p className="analyze-chesscom-link">
+          <Link to="/chesscom-import">Or see your Chess960 stats from Chess.com &rarr;</Link>
+        </p>
       </div>
     );
   }
