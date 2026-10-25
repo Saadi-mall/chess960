@@ -31,7 +31,7 @@ export function EvaluationBar({ evaluation, turn }: EvaluationBarProps) {
   }
 
   return (
-    <div className="eval-bar-card sidebar-card">
+    <div className="eval-bar-card panel-card">
       <div className="eval-bar">
         <div className="eval-bar-white" style={{ width: `${whiteFraction * 100}%` }} />
       </div>

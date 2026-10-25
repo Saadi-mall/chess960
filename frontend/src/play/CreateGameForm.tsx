@@ -1,23 +1,35 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Chessboard } from "../board/Chessboard";
+import { SegmentedControl } from "../SegmentedControl";
+import { useStartingPreview } from "../positions/useStartingPreview";
 import { createGame } from "./api";
 import { setSeat } from "./storage";
 
 const TIME_CONTROLS: Array<{ label: string; initialSeconds: number; incrementSeconds: number }> = [
-  { label: "1+0 Bullet", initialSeconds: 60, incrementSeconds: 0 },
-  { label: "3+2 Blitz", initialSeconds: 180, incrementSeconds: 2 },
-  { label: "5+0 Blitz", initialSeconds: 300, incrementSeconds: 0 },
-  { label: "10+5 Rapid", initialSeconds: 600, incrementSeconds: 5 },
-  { label: "30+0 Classical", initialSeconds: 1800, incrementSeconds: 0 },
+  { label: "1+0", initialSeconds: 60, incrementSeconds: 0 },
+  { label: "3+2", initialSeconds: 180, incrementSeconds: 2 },
+  { label: "5+0", initialSeconds: 300, incrementSeconds: 0 },
+  { label: "10+5", initialSeconds: 600, incrementSeconds: 5 },
+  { label: "30+0", initialSeconds: 1800, incrementSeconds: 0 },
+];
+
+const POSITION_MODE_OPTIONS = [
+  { value: "RANDOM" as const, label: "Random" },
+  { value: "NUMBER" as const, label: "Number" },
+  { value: "DAILY" as const, label: "Today's lesson" },
 ];
 
 export function CreateGameForm() {
   const navigate = useNavigate();
   const [positionMode, setPositionMode] = useState<"RANDOM" | "NUMBER" | "DAILY">("RANDOM");
   const [number, setNumber] = useState(518);
+  const [shuffleKey, setShuffleKey] = useState(0);
   const [timeControlIndex, setTimeControlIndex] = useState(2); // 5+0
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const { fen, resolvedNumber } = useStartingPreview(positionMode, number, shuffleKey);
 
   async function handleCreate() {
     setBusy(true);
@@ -40,67 +52,69 @@ export function CreateGameForm() {
   }
 
   return (
-    <div className="create-game centered-page">
-      <h2>Start a game</h2>
+    <div className="board-page">
+      <div className="board-page-board">
+        {fen && <Chessboard fen={fen} legalMoves={[]} animateEntry />}
+      </div>
 
-      <fieldset className="field-group">
-        <legend>Starting position</legend>
-        <label>
-          <input
-            type="radio"
-            checked={positionMode === "RANDOM"}
-            onChange={() => setPositionMode("RANDOM")}
-          />
-          Random Chess960 position
-        </label>
-        <label>
-          <input
-            type="radio"
-            checked={positionMode === "NUMBER"}
-            onChange={() => setPositionMode("NUMBER")}
-          />
-          Position number
-          <input
-            type="number"
-            min={0}
-            max={959}
-            value={number}
-            disabled={positionMode !== "NUMBER"}
-            onChange={(e) => setNumber(Number(e.target.value))}
-            className="number-input"
-          />
-        </label>
-        <label>
-          <input
-            type="radio"
-            checked={positionMode === "DAILY"}
-            onChange={() => setPositionMode("DAILY")}
-          />
-          Today's lesson position
-        </label>
-      </fieldset>
+      <div className="board-page-panel">
+        <div className="panel-card">
+          <h2>Start a game</h2>
 
-      <fieldset className="field-group">
-        <legend>Time control</legend>
-        <div className="time-control-options">
-          {TIME_CONTROLS.map((tc, i) => (
-            <button
-              key={tc.label}
-              type="button"
-              className={i === timeControlIndex ? "selected" : ""}
-              onClick={() => setTimeControlIndex(i)}
-            >
-              {tc.label}
-            </button>
-          ))}
+          <div className="form-section">
+            <span className="form-section-label">Starting position</span>
+            <SegmentedControl
+              aria-label="Starting position"
+              options={POSITION_MODE_OPTIONS}
+              value={positionMode}
+              onChange={setPositionMode}
+            />
+            {positionMode === "NUMBER" && (
+              <input
+                type="number"
+                min={0}
+                max={959}
+                value={number}
+                onChange={(e) => setNumber(Number(e.target.value))}
+                className="number-input"
+                aria-label="Chess960 position number"
+                style={{ marginTop: "var(--space-2)" }}
+              />
+            )}
+            {positionMode === "RANDOM" && (
+              <button
+                type="button"
+                className="secondary-button"
+                style={{ marginTop: "var(--space-2)", width: "100%" }}
+                onClick={() => setShuffleKey((k) => k + 1)}
+              >
+                Shuffle again
+              </button>
+            )}
+            {resolvedNumber !== null && (
+              <p className="status-text" style={{ margin: "var(--space-2) 0 0" }}>
+                Position #{resolvedNumber}
+              </p>
+            )}
+          </div>
+
+          <div className="form-section">
+            <span className="form-section-label">Time control</span>
+            <SegmentedControl
+              aria-label="Time control"
+              options={TIME_CONTROLS.map((tc, i) => ({ value: String(i), label: tc.label }))}
+              value={String(timeControlIndex)}
+              onChange={(v) => setTimeControlIndex(Number(v))}
+            />
+          </div>
+
+          {error && <p className="error-text">{error}</p>}
+
+          <button className="primary-button" onClick={handleCreate} disabled={busy || !fen}>
+            {busy ? "Creating..." : "Create game"}
+          </button>
         </div>
-      </fieldset>
-
-      {error && <p className="error-text">{error}</p>}
-
-      <button className="primary-button" onClick={handleCreate} disabled={busy}>
-        {busy ? "Creating..." : "Create game"}
-      </button>
+      </div>
     </div>
   );
 }

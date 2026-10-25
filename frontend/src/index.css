@@ -2,26 +2,61 @@
   color-scheme: dark;
 
   /* Dark is the default theme, not a prefers-color-scheme override - see theme.ts.
-     [data-theme="light"] below is the only other state. */
-  --color-bg: #151109;
-  --color-surface: #1f1910;
-  --color-surface-raised: #271f14;
-  --color-text: #f1e6d2;
-  --color-text-muted: #a3927a;
-  --color-border: #3a2f1f;
+     [data-theme="light"] below is the only other state.
+
+     Three background levels for real depth: bg (the page itself) < panel (sidebars,
+     cards) < raised (buttons, inputs, selected states) - each one step lighter so
+     interactive elements never blend into the surface they sit on. */
+  --color-bg: #130f0a;
+  --color-panel: #1d1710;
+  --color-raised: #2b2217;
+  --color-raised-hover: #362a1a;
+  --color-text: #f3e9d8;
+  --color-text-muted: #a99a80;
+  --color-border: #42351f;
+
   --color-accent: #e3a43c;
+  --color-accent-strong: #f3b24a;
   --color-accent-contrast: #1a1409;
   --color-accent-muted: rgba(227, 164, 60, 0.16);
+
+  --color-success: #4fb871;
+  --color-success-bg: rgba(79, 184, 113, 0.16);
+  --color-danger: #e2594a;
+  --color-danger-bg: rgba(226, 89, 74, 0.16);
 
   --board-light: #eadbb3;
   --board-dark: #7a5330;
   --board-highlight: rgba(227, 164, 60, 0.45);
   --board-selected: rgba(227, 164, 60, 0.65);
+  --board-success: rgba(79, 184, 113, 0.55);
+  --board-danger: rgba(226, 89, 74, 0.55);
 
   --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-heading: "Source Serif 4", Georgia, serif;
 
-  --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.35);
+  /* Type scale */
+  --text-xs: 0.75rem;
+  --text-sm: 0.85rem;
+  --text-base: 1rem;
+  --text-md: 1.1rem;
+  --text-lg: 1.3rem;
+  --text-xl: 1.6rem;
+  --text-2xl: 2rem;
+
+  /* Spacing scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+
+  --radius: 8px;
+  --radius-sm: 6px;
+
+  --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.4);
+  --shadow-board: 0 10px 30px rgba(0, 0, 0, 0.5);
 
   font-family: var(--font-body);
   font-size: 16px;
@@ -31,22 +66,33 @@
 :root[data-theme="light"] {
   color-scheme: light;
 
-  --color-bg: #f7f0e2;
-  --color-surface: #fffdf8;
-  --color-surface-raised: #ffffff;
+  --color-bg: #f3ead7;
+  --color-panel: #fbf4e6;
+  --color-raised: #ffffff;
+  --color-raised-hover: #fff9ee;
   --color-text: #241c10;
-  --color-text-muted: #6e5f47;
-  --color-border: #e1d3b4;
+  --color-text-muted: #70604a;
+  --color-border: #ddc9a0;
+
   --color-accent: #a8631a;
+  --color-accent-strong: #8f5214;
   --color-accent-contrast: #fff8ec;
   --color-accent-muted: rgba(168, 99, 26, 0.12);
+
+  --color-success: #2f8f52;
+  --color-success-bg: rgba(47, 143, 82, 0.12);
+  --color-danger: #c13a2c;
+  --color-danger-bg: rgba(193, 58, 44, 0.12);
 
   --board-light: #f1e3c6;
   --board-dark: #8b5e34;
   --board-highlight: rgba(168, 99, 26, 0.4);
   --board-selected: rgba(168, 99, 26, 0.6);
+  --board-success: rgba(47, 143, 82, 0.55);
+  --board-danger: rgba(193, 58, 44, 0.55);
 
   --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.08);
+  --shadow-board: 0 10px 30px rgba(0, 0, 0, 0.18);
 }
 
 * {
@@ -73,6 +119,21 @@ h3 {
   margin: 0 0 0.4em;
 }
 
+h1 {
+  font-size: var(--text-xl);
+}
+h2 {
+  font-size: var(--text-lg);
+}
+h3 {
+  font-size: var(--text-md);
+}
+
 button {
   font-family: inherit;
+}
+
+input[type="number"] {
+  font-family: inherit;
+  font-size: var(--text-base);
 }

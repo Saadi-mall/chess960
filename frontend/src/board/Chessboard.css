@@ -31,6 +31,25 @@
   pointer-events: none;
 }
 
+.square-marker-selected {
+  fill: var(--board-selected);
+  pointer-events: none;
+}
+
+.square-marker-correct {
+  fill: var(--board-success);
+  pointer-events: none;
+}
+
+.square-marker-incorrect {
+  fill: var(--board-danger);
+  pointer-events: none;
+}
+
+.chessboard-disabled .piece {
+  cursor: default;
+}
+
 .move-dot {
   fill: var(--board-highlight);
   pointer-events: none;
@@ -71,7 +90,7 @@
 .promotion-picker {
   display: flex;
   gap: 0.4rem;
-  background: var(--color-surface-raised);
+  background: var(--color-raised);
   border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 0.5rem;

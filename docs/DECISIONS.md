@@ -207,6 +207,16 @@ decorative:
   than trusting the YAML: the backend fails fast (and crash-loops) if Postgres isn't
   reachable yet at startup. Fixed with an init container, confirmed with a clean
   zero-restart redeploy.
+- **The Learn tab's quiz clicks never highlighted anything.** `Chessboard`'s "pick a
+  square" mode (`onSquareClick`) reported the click straight to the parent without ever
+  calling its own `setSelected`, so nothing on the board reacted - and because grading ran
+  immediately on click, there was no way to change your answer either. Fixed by (1) having
+  the board highlight the clicked square itself in that mode, and (2) splitting "pick" from
+  "grade" in `LearnTab`: a click (for the weakest-square quiz) or a completed move (for the
+  two best-move steps) now only stages an answer - a new `markers` prop on `Chessboard`
+  shows it, and lets the parent later recolor the same squares green/red - and nothing is
+  graded, or sent to the server for the move steps, until Submit. Covered by
+  `LearnTab.test.tsx`, the project's first frontend test.
 
 ## What I'd do next with more time
 
@@ -226,11 +236,12 @@ decorative:
 - **A real opponent-strength option for Learn/Analyze** - right now Stockfish always plays
   at full strength; `UCI_LimitStrength` / `UCI_Elo` would let the Learn tab's quizzes scale
   to a beginner.
-- **Frontend automated tests.** The UI was verified thoroughly but manually, in-browser,
-  through every tab; there's no frontend test suite today. Given more time: component tests
-  for the board's move/drag/promotion logic (the highest-value target, since it's the
-  piece every tab depends on) and a couple of Playwright end-to-end flows (create a game,
-  join it, play a few moves).
+- **More frontend automated tests.** There's now a small Vitest + React Testing Library
+  suite (`LearnTab.test.tsx`), added once the Learn tab had an interaction bug worth
+  regression-testing, but most of the UI is still only verified manually in-browser.
+  Given more time: component tests for the board's own move/drag/promotion logic (the
+  highest-value remaining target, since it's the piece every tab depends on) and a couple
+  of Playwright end-to-end flows (create a game, join it, play a few moves).
 - **CI** (GitHub Actions): backend `mvn test` and frontend `tsc && vite build && oxlint` on
   every push, since right now all of that only ran locally, by hand, once per step.
 - **HTTPS/WSS and real secret management** for any deployment that isn't local - the

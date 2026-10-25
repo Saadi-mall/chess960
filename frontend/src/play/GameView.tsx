@@ -95,8 +95,8 @@ export function GameView() {
         />
       </div>
 
-      <div className="board-page-sidebar">
-        <div className="sidebar-card clocks">
+      <div className="board-page-panel">
+        <div className="panel-card clocks">
           <ClockDisplay
             label="Black"
             millis={state.blackMillis}
@@ -110,7 +110,7 @@ export function GameView() {
         </div>
 
         {state.status === "WAITING_FOR_OPPONENT" && (
-          <div className="sidebar-card waiting-banner">
+          <div className="panel-card waiting-banner">
             <p>Share this link with a friend:</p>
             <div className="share-row">
               <input
@@ -178,7 +178,7 @@ export function GameView() {
         )}
 
         {state.moveHistory.length > 0 && (
-          <ol className="move-history sidebar-card">
+          <ol className="move-history panel-card">
             {state.moveHistory.map((m, i) => (
               <li key={i}>{m}</li>
             ))}

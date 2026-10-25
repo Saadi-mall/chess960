@@ -1,9 +1,14 @@
 package com.chess960.backend.position;
 
+import com.chess960.backend.game.DailyPosition;
+import com.chess960.backend.rules.Chess960StartingPosition;
+import java.time.LocalDate;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,6 +30,29 @@ public class PositionController {
     @PostMapping("/api/positions/move")
     public PositionStateResponse move(@RequestBody MoveRequest request) {
         return positionService.applyMove(request);
+    }
+
+    /** Just the FEN for a starting position, so a live preview board can update as the
+     * user changes position mode/number without running the full analyzer+Stockfish
+     * pipeline. "NUMBER" always echoes back the requested number; "RANDOM" rolls a fresh
+     * one each call (the preview is meant to shuffle); "DAILY" resolves today's lesson
+     * number. */
+    @GetMapping("/api/positions/starting")
+    public StartingPositionResponse starting(
+            @RequestParam String mode, @RequestParam(required = false) Integer number) {
+        int resolved =
+                switch (mode) {
+                    case "RANDOM" -> Chess960StartingPosition.randomNumber();
+                    case "DAILY" -> DailyPosition.numberFor(LocalDate.now());
+                    case "NUMBER" -> {
+                        if (number == null) {
+                            throw new IllegalArgumentException("number is required for mode NUMBER");
+                        }
+                        yield number;
+                    }
+                    default -> throw new IllegalArgumentException("Unknown position mode: " + mode);
+                };
+        return new StartingPositionResponse(resolved, Chess960StartingPosition.startingFen(resolved));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

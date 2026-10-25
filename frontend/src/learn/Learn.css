@@ -1,28 +1,17 @@
-.learn-intro {
-  max-width: 480px;
-  margin-left: auto;
-  margin-right: auto;
-  text-align: center;
-}
-
 .learn-streak {
   font-family: var(--font-heading);
   color: var(--color-accent);
-  margin: 0 0 0.6rem;
-  font-size: 0.9rem;
+  margin: 0;
+  font-size: var(--text-sm);
   text-align: center;
 }
 
 .learn-prompt {
-  font-size: 0.95rem;
-  margin: 0 0 0.6rem;
+  font-size: var(--text-base);
+  margin: 0;
 }
 
 .learn-feedback {
-  margin: 0 0 0.6rem;
-}
-
-.learn-intro .primary-button {
-  width: auto;
-  padding: 0.55rem 1.3rem;
+  margin: 0;
+  font-weight: 600;
 }

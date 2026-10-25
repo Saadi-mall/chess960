@@ -15,6 +15,14 @@ function pieceImageHref(piece: string): string {
 const SIZE = 100; // one square, in SVG user units
 const BOARD = SIZE * 8;
 
+/** A colored square overlay the parent controls directly - used by the Learn tab to show
+ * a staged quiz answer (amber, "selected") and, after grading, the correct answer (green)
+ * and the learner's wrong answer (red). */
+export interface SquareMarker {
+  square: string;
+  kind: "selected" | "correct" | "incorrect";
+}
+
 interface ChessboardProps {
   fen: string;
   legalMoves: LegalMove[];
@@ -28,6 +36,12 @@ interface ChessboardProps {
    * select-a-piece-then-move flow, and pieces aren't draggable.
    */
   onSquareClick?: (square: string) => void;
+  /** Parent-controlled square highlights, drawn over the board's own selection highlight -
+   * see {@link SquareMarker}. */
+  markers?: SquareMarker[];
+  /** Ignores all clicks/drags - used once a quiz step has been graded, so the board stops
+   * taking input while the answer is on screen. */
+  disabled?: boolean;
 }
 
 interface DragState {
@@ -43,6 +57,8 @@ export function Chessboard({
   onMove,
   animateEntry = false,
   onSquareClick,
+  markers,
+  disabled = false,
 }: ChessboardProps) {
   const squares = useMemo(() => squaresFromFen(fen), [fen]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -100,7 +116,9 @@ export function Chessboard({
   }
 
   function handleSquareClick(square: string) {
+    if (disabled) return;
     if (onSquareClick) {
+      setSelected(square);
       onSquareClick(square);
       return;
     }
@@ -113,8 +131,10 @@ export function Chessboard({
   }
 
   function handlePiecePointerDown(square: string, event: React.PointerEvent) {
+    if (disabled) return;
     if (onSquareClick) {
       event.preventDefault();
+      setSelected(square);
       onSquareClick(square);
       return;
     }
@@ -161,7 +181,7 @@ export function Chessboard({
     })();
 
   return (
-    <div className="chessboard-wrap">
+    <div className={disabled ? "chessboard-wrap chessboard-disabled" : "chessboard-wrap"}>
       <svg
         ref={svgRef}
         viewBox={`-18 -18 ${BOARD + 36} ${BOARD + 36}`}
@@ -169,7 +189,7 @@ export function Chessboard({
         role="group"
         aria-label="Chess board"
       >
-        {renderSquares(orientation, handleSquareClick, destinations, selected)}
+        {renderSquares(orientation, handleSquareClick, destinations, selected, markers)}
         {renderCoordinates(orientation)}
         {Object.entries(squares).map(([square, piece]) => {
           if (!piece) return null;
@@ -230,7 +250,12 @@ function renderSquares(
   onClick: (square: string) => void,
   destinations: Set<string>,
   selected: string | null,
+  markers?: SquareMarker[],
 ) {
+  const markerBySquare = new Map<string, SquareMarker["kind"]>();
+  for (const marker of markers ?? []) {
+    markerBySquare.set(marker.square, marker.kind);
+  }
   const squares = [];
   for (let file = 0; file < 8; file++) {
     for (let rank = 0; rank < 8; rank++) {
@@ -241,6 +266,7 @@ function renderSquares(
       squares.push(
         <rect
           key={square}
+          data-square={square}
           x={displayFile * SIZE}
           y={displayRank * SIZE}
           width={SIZE}
@@ -261,15 +287,30 @@ function renderSquares(
           />,
         );
       }
-      if (selected === square) {
+      if (selected === square && !markerBySquare.has(square)) {
         squares.push(
           <rect
             key={square + "-sel"}
+            data-square={square}
             x={displayFile * SIZE}
             y={displayRank * SIZE}
             width={SIZE}
             height={SIZE}
             className="square-selected"
+          />,
+        );
+      }
+      const markerKind = markerBySquare.get(square);
+      if (markerKind) {
+        squares.push(
+          <rect
+            key={square + "-marker"}
+            data-square={square}
+            x={displayFile * SIZE}
+            y={displayRank * SIZE}
+            width={SIZE}
+            height={SIZE}
+            className={`square-marker-${markerKind}`}
           />,
         );
       }

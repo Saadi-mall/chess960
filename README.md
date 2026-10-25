@@ -76,15 +76,17 @@ mvn test
 This needs a JDK 21 and a `stockfish` binary on your `PATH` (`brew install stockfish` on
 macOS); without Stockfish, everything except `StockfishEngineTest` still passes.
 
-Frontend (type checking, linting, and a production build - there's no frontend unit test
-suite; the UI was verified manually in-browser through each tab, including click-to-move,
-drag-to-move, the promotion picker, board flipping, and mobile widths):
+Frontend (type checking, linting, a production build, and a small Vitest + React Testing
+Library suite covering the Learn tab's quiz interaction - everything else was verified
+manually in-browser through each tab, including click-to-move, drag-to-move, the promotion
+picker, board flipping, and mobile widths):
 
 ```bash
 cd frontend
 npm install
 npm run build   # tsc -b && vite build
 npx oxlint
+npm test        # vitest run
 ```
 
 ## Project layout
