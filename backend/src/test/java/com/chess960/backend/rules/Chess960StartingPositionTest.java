@@ -68,6 +68,19 @@ class Chess960StartingPositionTest {
                 "king must start between the two rooks");
     }
 
+    @ParameterizedTest
+    @ValueSource(ints = {0, 1, 2, 128, 274, 380, 518, 845, 959})
+    void numberOfIsTheInverseOfBackRank(int number) {
+        char[] backRank = Chess960StartingPosition.backRank(number);
+        assertEquals(number, Chess960StartingPosition.numberOf(backRank));
+    }
+
+    @Test
+    void numberOfRejectsAnArrangementThatIsntLegalChess960() {
+        // Bishops on d1 and f1 are both light squares - no Chess960 number produces this.
+        assertEquals(null, Chess960StartingPosition.numberOf("RNQBKBNR".toCharArray()));
+    }
+
     @Test
     void startingFenIsAValidShredderFenForEachRook() {
         String fen = Chess960StartingPosition.startingFen(1);

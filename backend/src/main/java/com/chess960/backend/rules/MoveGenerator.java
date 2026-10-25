@@ -263,6 +263,69 @@ public final class MoveGenerator {
         return slidingAttack(position, file, rank, ROOK_DIRECTIONS, byColor, PieceType.ROOK);
     }
 
+    /**
+     * How many of {@code byColor}'s pieces attack {@code square} - used by the position
+     * analyzer to count defenders, not by move generation, so unlike
+     * {@link #isSquareAttacked} it doesn't stop at the first attacker.
+     */
+    public static int countAttackers(Position position, int square, Color byColor) {
+        int count = 0;
+        int file = Square.file(square);
+        int rank = Square.rank(square);
+
+        int pawnRank = rank - (byColor == Color.WHITE ? 1 : -1);
+        for (int pawnFile : new int[] {file - 1, file + 1}) {
+            if (Square.onBoard(pawnFile, pawnRank)
+                    && isPiece(position, Square.of(pawnFile, pawnRank), PieceType.PAWN, byColor)) {
+                count++;
+            }
+        }
+        for (int[] delta : KNIGHT_DELTAS) {
+            int f = file + delta[0];
+            int r = rank + delta[1];
+            if (Square.onBoard(f, r) && isPiece(position, Square.of(f, r), PieceType.KNIGHT, byColor)) {
+                count++;
+            }
+        }
+        for (int[] delta : KING_DELTAS) {
+            int f = file + delta[0];
+            int r = rank + delta[1];
+            if (Square.onBoard(f, r) && isPiece(position, Square.of(f, r), PieceType.KING, byColor)) {
+                count++;
+            }
+        }
+        count += countSlidingAttackers(position, file, rank, BISHOP_DIRECTIONS, byColor, PieceType.BISHOP);
+        count += countSlidingAttackers(position, file, rank, ROOK_DIRECTIONS, byColor, PieceType.ROOK);
+        return count;
+    }
+
+    private static int countSlidingAttackers(
+            Position position,
+            int file,
+            int rank,
+            int[][] directions,
+            Color byColor,
+            PieceType straightOrDiagonalType) {
+        int count = 0;
+        for (int[] direction : directions) {
+            int f = file + direction[0];
+            int r = rank + direction[1];
+            while (Square.onBoard(f, r)) {
+                Piece piece = position.pieceAt(Square.of(f, r));
+                if (piece != null) {
+                    if (piece.color() == byColor
+                            && (piece.type() == straightOrDiagonalType || piece.type() == PieceType.QUEEN)) {
+                        count++;
+                    }
+                    break;
+                }
+                f += direction[0];
+                r += direction[1];
+            }
+        }
+        return count;
+    }
+
     private static boolean slidingAttack(
             Position position,
             int file,

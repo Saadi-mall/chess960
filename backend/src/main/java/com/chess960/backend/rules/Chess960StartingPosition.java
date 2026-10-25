@@ -67,6 +67,92 @@ public final class Chess960StartingPosition {
         return rank;
     }
 
+    /**
+     * The inverse of {@link #backRank}: given a back-rank arrangement, returns its
+     * Chess960 number, or {@code null} if it isn't a legal Chess960 arrangement at all
+     * (wrong piece counts, bishops on the same color, or the king not between the rooks).
+     */
+    public static Integer numberOf(char[] backRank) {
+        if (backRank.length != 8) {
+            return null;
+        }
+
+        List<Integer> bishopFiles = filesOf(backRank, 'B');
+        if (bishopFiles.size() != 2) {
+            return null;
+        }
+        int fileA = bishopFiles.get(0);
+        int fileB = bishopFiles.get(1);
+        boolean fileALight = fileA % 2 == 1;
+        if (fileALight == (fileB % 2 == 1)) {
+            return null; // same-colored bishops isn't a legal arrangement
+        }
+        int lightBishopFile = fileALight ? fileA : fileB;
+        int darkBishopFile = fileALight ? fileB : fileA;
+        int b1 = (lightBishopFile - 1) / 2;
+        int b2 = darkBishopFile / 2;
+
+        boolean[] occupied = new boolean[8];
+        occupied[lightBishopFile] = true;
+        occupied[darkBishopFile] = true;
+
+        List<Integer> queenFiles = filesOf(backRank, 'Q');
+        if (queenFiles.size() != 1) {
+            return null;
+        }
+        int q = emptyFiles(occupied).indexOf(queenFiles.get(0));
+        if (q < 0) {
+            return null;
+        }
+        occupied[queenFiles.get(0)] = true;
+
+        List<Integer> knightFiles = filesOf(backRank, 'N');
+        if (knightFiles.size() != 2) {
+            return null;
+        }
+        List<Integer> beforeKnights = emptyFiles(occupied);
+        int k1 = beforeKnights.indexOf(knightFiles.get(0));
+        int k2 = beforeKnights.indexOf(knightFiles.get(1));
+        if (k1 < 0 || k2 < 0) {
+            return null;
+        }
+        int knightSlot = indexOfPair(Math.min(k1, k2), Math.max(k1, k2));
+        if (knightSlot < 0) {
+            return null;
+        }
+        occupied[knightFiles.get(0)] = true;
+        occupied[knightFiles.get(1)] = true;
+
+        List<Integer> last3 = emptyFiles(occupied);
+        if (last3.size() != 3
+                || backRank[last3.get(0)] != 'R'
+                || backRank[last3.get(1)] != 'K'
+                || backRank[last3.get(2)] != 'R') {
+            return null;
+        }
+
+        return b1 + 4 * (b2 + 4 * (q + 6 * knightSlot));
+    }
+
+    private static List<Integer> filesOf(char[] backRank, char piece) {
+        List<Integer> files = new ArrayList<>();
+        for (int file = 0; file < 8; file++) {
+            if (backRank[file] == piece) {
+                files.add(file);
+            }
+        }
+        return files;
+    }
+
+    private static int indexOfPair(int lo, int hi) {
+        for (int i = 0; i < KNIGHT_SLOT_PAIRS.length; i++) {
+            if (KNIGHT_SLOT_PAIRS[i][0] == lo && KNIGHT_SLOT_PAIRS[i][1] == hi) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     /** The full game-start Shredder-FEN for this Chess960 number. */
     public static String startingFen(int number) {
         char[] white = backRank(number);
