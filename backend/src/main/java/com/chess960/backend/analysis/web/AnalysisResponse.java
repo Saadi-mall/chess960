@@ -1,3 +1,13 @@
 package com.chess960.backend.analysis.web;
 
-public record AnalysisResponse(String fen, OverviewDto overview, EvaluationDto evaluation) {}
+import com.chess960.backend.position.MoveDto;
+import java.util.List;
+
+public record AnalysisResponse(
+        String fen,
+        List<MoveDto> legalMoves,
+        String turn,
+        String status,
+        String winner,
+        OverviewDto overview,
+        EvaluationDto evaluation) {}

@@ -1,0 +1,79 @@
+/* Generic building blocks shared across tabs: forms, buttons, status text. */
+
+.field-group {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.field-group legend {
+  padding: 0 0.4rem;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.field-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+}
+
+.number-input {
+  width: 4.5rem;
+  margin-left: auto;
+}
+
+.primary-button {
+  width: 100%;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  border: none;
+  border-radius: 8px;
+  padding: 0.7rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.primary-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.secondary-button {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.status-text {
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.status-over {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.error-text {
+  color: var(--color-accent);
+  text-align: center;
+}
+
+.move-history {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  list-style: none;
+  padding: 0;
+  margin-top: 1rem;
+  font-family: var(--font-heading);
+  color: var(--color-text-muted);
+  justify-content: center;
+}

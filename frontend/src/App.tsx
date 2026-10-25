@@ -1,4 +1,5 @@
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
+import { AnalyzeTab } from "./analyze/AnalyzeTab";
 import { CreateGameForm } from "./play/CreateGameForm";
 import { GameView } from "./play/GameView";
 import "./App.css";
@@ -30,7 +31,7 @@ function App() {
           <Route path="/" element={<Navigate to="/play" replace />} />
           <Route path="/play" element={<CreateGameForm />} />
           <Route path="/play/:gameId" element={<GameView />} />
-          <Route path="/analyze" element={<ComingSoon label="Analyze" />} />
+          <Route path="/analyze" element={<AnalyzeTab />} />
           <Route path="/learn" element={<ComingSoon label="Learn" />} />
         </Routes>
       </main>
