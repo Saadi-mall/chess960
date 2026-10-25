@@ -1,32 +1,40 @@
-.demo {
-  max-width: 640px;
-  margin: 2rem auto;
-  padding: 0 1.5rem;
+.app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.app-header {
   text-align: center;
-}
-
-.demo-note {
-  color: var(--color-text-muted);
-  font-size: 0.9rem;
-}
-
-.demo-controls {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: center;
-  flex-wrap: wrap;
   margin-bottom: 1.5rem;
 }
 
-.demo-controls button {
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
-  border-radius: 6px;
-  padding: 0.5rem 0.9rem;
-  cursor: pointer;
+.app-header h1 {
+  margin-bottom: 0.75rem;
 }
 
-.demo-controls button:hover {
-  border-color: var(--color-accent);
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 0.75rem;
+}
+
+.tabs a {
+  color: var(--color-text-muted);
+  text-decoration: none;
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  font-family: var(--font-heading);
+}
+
+.tabs a.active {
+  color: var(--color-text);
+  background: var(--board-highlight);
+}
+
+.status-text {
+  color: var(--color-text-muted);
+  text-align: center;
 }

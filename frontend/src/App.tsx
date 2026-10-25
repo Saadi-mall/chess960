@@ -1,76 +1,40 @@
-import { useState } from "react";
-import { Chessboard } from "./board/Chessboard";
-import type { LegalMove } from "./board/types";
+import { NavLink, Navigate, Route, Routes } from "react-router-dom";
+import { CreateGameForm } from "./play/CreateGameForm";
+import { GameView } from "./play/GameView";
 import "./App.css";
 
-/**
- * Standard-start legal moves, hardcoded for now just to exercise the board (click/drag,
- * highlighting, promotion, the shuffle-in animation) before there's a server to ask.
- * Step 4 (Play tab) replaces this with real moves from the backend.
- */
-const STANDARD_START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w HAha - 0 1";
-const STANDARD_LEGAL_MOVES: LegalMove[] = [
-  ..."abcdefgh".split("").flatMap((file) => [
-    { from: `${file}2`, to: `${file}3` },
-    { from: `${file}2`, to: `${file}4` },
-  ]),
-  { from: "b1", to: "a3" },
-  { from: "b1", to: "c3" },
-  { from: "g1", to: "f3" },
-  { from: "g1", to: "h3" },
-];
-
-const PROMOTION_DEMO_FEN = "k7/4P3/8/8/8/8/8/4K3 w - - 0 1";
-const PROMOTION_DEMO_MOVES: LegalMove[] = (["q", "r", "b", "n"] as const).map((promotion) => ({
-  from: "e7",
-  to: "e8",
-  promotion,
-}));
-
-const SHUFFLED_FEN = "bqnb1rkr/pppppppp/8/8/8/8/PPPPPPPP/BQNB1RKR w HFhf - 0 1";
-
-type Demo = "start" | "promotion" | "shuffled";
+function ComingSoon({ label }: { label: string }) {
+  return <p className="status-text">{label} is coming soon.</p>;
+}
 
 function App() {
-  const [demo, setDemo] = useState<Demo>("start");
-  const [orientation, setOrientation] = useState<"w" | "b">("w");
-  const [lastMove, setLastMove] = useState<LegalMove | null>(null);
-
-  const { fen, legalMoves } =
-    demo === "promotion"
-      ? { fen: PROMOTION_DEMO_FEN, legalMoves: PROMOTION_DEMO_MOVES }
-      : demo === "shuffled"
-        ? { fen: SHUFFLED_FEN, legalMoves: [] }
-        : { fen: STANDARD_START, legalMoves: STANDARD_LEGAL_MOVES };
-
   return (
-    <main className="demo">
-      <h1>Chess960</h1>
-      <p className="demo-note">
-        Board UI scaffold - moves below are hardcoded for testing, not server-provided yet.
-      </p>
-      <div className="demo-controls">
-        <button onClick={() => setDemo("start")}>Standard start</button>
-        <button onClick={() => setDemo("shuffled")}>Shuffled start (animate)</button>
-        <button onClick={() => setDemo("promotion")}>Promotion</button>
-        <button onClick={() => setOrientation((o) => (o === "w" ? "b" : "w"))}>
-          Flip board
-        </button>
-      </div>
-      <Chessboard
-        fen={fen}
-        legalMoves={legalMoves}
-        orientation={orientation}
-        animateEntry={demo === "shuffled"}
-        onMove={setLastMove}
-      />
-      {lastMove && (
-        <p className="demo-note">
-          Last move: {lastMove.from}-{lastMove.to}
-          {lastMove.promotion ? `=${lastMove.promotion}` : ""}
-        </p>
-      )}
-    </main>
+    <div className="app">
+      <header className="app-header">
+        <h1>Chess960</h1>
+        <nav className="tabs">
+          <NavLink to="/play" className={({ isActive }) => (isActive ? "active" : "")}>
+            Play
+          </NavLink>
+          <NavLink to="/analyze" className={({ isActive }) => (isActive ? "active" : "")}>
+            Analyze
+          </NavLink>
+          <NavLink to="/learn" className={({ isActive }) => (isActive ? "active" : "")}>
+            Learn
+          </NavLink>
+        </nav>
+      </header>
+
+      <main className="app-main">
+        <Routes>
+          <Route path="/" element={<Navigate to="/play" replace />} />
+          <Route path="/play" element={<CreateGameForm />} />
+          <Route path="/play/:gameId" element={<GameView />} />
+          <Route path="/analyze" element={<ComingSoon label="Analyze" />} />
+          <Route path="/learn" element={<ComingSoon label="Learn" />} />
+        </Routes>
+      </main>
+    </div>
   );
 }
 
