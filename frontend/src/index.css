@@ -1,8 +1,71 @@
 :root {
   color-scheme: light dark;
-  font: 16px/1.5 system-ui, sans-serif;
+
+  --color-bg: #faf5eb;
+  --color-surface: #ffffff;
+  --color-text: #2a241d;
+  --color-text-muted: #6b6052;
+  --color-border: #e3d9c6;
+  --color-accent: #8a3324;
+  --color-accent-contrast: #fff8ee;
+
+  --board-light: #efe5d1;
+  --board-dark: #8a7355;
+  --board-highlight: rgba(138, 51, 36, 0.35);
+  --board-selected: rgba(138, 51, 36, 0.55);
+  --board-coord: #a99a80;
+
+  /* Piece colors are fixed regardless of light/dark UI theme - a white piece must always
+     read as white, a black piece as black, or flipping themes would be confusing mid-game. */
+  --piece-white: #f7f1e3;
+  --piece-white-outline: #2a241d;
+  --piece-black: #2a241d;
+  --piece-black-outline: #f7f1e3;
+
+  --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-heading: "Source Serif 4", Georgia, serif;
+
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #1c1812;
+    --color-surface: #262019;
+    --color-text: #ece3d3;
+    --color-text-muted: #ab9d87;
+    --color-border: #3a3127;
+    --color-accent: #cf7a66;
+    --color-accent-contrast: #1c1812;
+
+    --board-light: #3a322a;
+    --board-dark: #211b15;
+    --board-highlight: rgba(207, 122, 102, 0.3);
+    --board-selected: rgba(207, 122, 102, 0.5);
+    --board-coord: #6b6052;
+  }
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  margin: 0 0 0.5em;
+}
+
+button {
+  font-family: inherit;
 }
