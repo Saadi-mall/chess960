@@ -1,0 +1,12 @@
+# Named "postgres" to match DB_HOST in backend-configmap.yaml - Kubernetes' own DNS
+# resolves a Service by name within the namespace, the same way Docker Compose does.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432

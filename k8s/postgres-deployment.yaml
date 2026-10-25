@@ -1,0 +1,53 @@
+# A single-replica Deployment+PVC is enough for a demo. A real deployment would use a
+# StatefulSet (or, better, a managed database) - Postgres doesn't horizontally scale by
+# just adding replicas, and a Deployment gives no guarantee the same volume stays attached
+# to the same pod identity across rescheduling the way a StatefulSet does.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # a second pod can't attach the same ReadWriteOnce volume
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: postgres-credentials
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+              subPath: postgres # avoid postgres writing directly into a lost+found-containing mount root
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "chess960"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "chess960"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: postgres-data

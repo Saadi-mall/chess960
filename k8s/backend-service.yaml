@@ -1,0 +1,14 @@
+# Named "backend" - the frontend's nginx config (frontend/nginx.conf) already proxies
+# /api/ and /ws/ to a host literally named "backend", the same name docker-compose.yml
+# gives it. Matching the name here means the exact same frontend image works unmodified
+# in both Docker Compose and this cluster.
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+spec:
+  selector:
+    app: backend
+  ports:
+    - port: 8080
+      targetPort: 8080
