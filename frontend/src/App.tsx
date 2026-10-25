@@ -1,12 +1,9 @@
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { AnalyzeTab } from "./analyze/AnalyzeTab";
+import { LearnTab } from "./learn/LearnTab";
 import { CreateGameForm } from "./play/CreateGameForm";
 import { GameView } from "./play/GameView";
 import "./App.css";
-
-function ComingSoon({ label }: { label: string }) {
-  return <p className="status-text">{label} is coming soon.</p>;
-}
 
 function App() {
   return (
@@ -32,7 +29,7 @@ function App() {
           <Route path="/play" element={<CreateGameForm />} />
           <Route path="/play/:gameId" element={<GameView />} />
           <Route path="/analyze" element={<AnalyzeTab />} />
-          <Route path="/learn" element={<ComingSoon label="Learn" />} />
+          <Route path="/learn" element={<LearnTab />} />
         </Routes>
       </main>
     </div>

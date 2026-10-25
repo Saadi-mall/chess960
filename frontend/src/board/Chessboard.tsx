@@ -22,6 +22,12 @@ interface ChessboardProps {
   onMove?: (move: LegalMove) => void;
   /** Play the back-rank "shuffling into place" animation the next time `fen` changes. */
   animateEntry?: boolean;
+  /**
+   * Switches the board into "pick a square" mode for quizzes like "find the weakest
+   * square": any square click reports here directly instead of going through the normal
+   * select-a-piece-then-move flow, and pieces aren't draggable.
+   */
+  onSquareClick?: (square: string) => void;
 }
 
 interface DragState {
@@ -36,6 +42,7 @@ export function Chessboard({
   orientation = "w",
   onMove,
   animateEntry = false,
+  onSquareClick,
 }: ChessboardProps) {
   const squares = useMemo(() => squaresFromFen(fen), [fen]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -93,6 +100,10 @@ export function Chessboard({
   }
 
   function handleSquareClick(square: string) {
+    if (onSquareClick) {
+      onSquareClick(square);
+      return;
+    }
     if (promotionChoice) return;
     if (selected && destinations.has(square)) {
       attemptMove(selected, square);
@@ -102,6 +113,11 @@ export function Chessboard({
   }
 
   function handlePiecePointerDown(square: string, event: React.PointerEvent) {
+    if (onSquareClick) {
+      event.preventDefault();
+      onSquareClick(square);
+      return;
+    }
     if (promotionChoice) return;
     event.preventDefault();
     if (selected && destinations.has(square)) {
