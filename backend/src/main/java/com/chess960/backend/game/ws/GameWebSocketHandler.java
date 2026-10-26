@@ -123,6 +123,10 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                 requirePlayer(color);
                 handleRematch(gameId, game, color);
             }
+            // Sent by the page every few minutes so a quiet game (a long think) still counts as
+            // traffic - free hosts put an idle server to sleep, losing in-memory games - and
+            // so proxies don't drop the connection as idle. Nothing to do or answer.
+            case "PING" -> {}
             default -> broadcaster.send(session, new ErrorMessage("Unknown message type: " + message.type()));
         }
     }

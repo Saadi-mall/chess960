@@ -12,4 +12,9 @@ RUN apt-get update \
 WORKDIR /app
 COPY --from=build /build/target/backend-*.jar app.jar
 EXPOSE 8080
+# Size the heap from the container's memory limit, leaving room for Stockfish and the JVM's
+# own overhead - free hosts give 512MB, where the JVM's defaults would run out.
+# apt puts Stockfish in /usr/games, which isn't on PATH.
+ENV STOCKFISH_PATH=/usr/games/stockfish
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=60 -XX:+UseSerialGC -Xss512k"
 ENTRYPOINT ["java", "-jar", "app.jar"]

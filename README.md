@@ -6,7 +6,8 @@ account that keeps your streak and results.
 
 Built for a Chess.com take-home. See [docs/DECISIONS.md](docs/DECISIONS.md) for the main
 design decisions, trade-offs, time breakdown, and what's next; see
-[k8s/README.md](k8s/README.md) for running it on Kubernetes instead of Docker Compose.
+[k8s/README.md](k8s/README.md) for running it on Kubernetes instead of Docker Compose, and
+[docs/DEPLOY.md](docs/DEPLOY.md) for hosting it for free on Vercel + Render + Supabase.
 
 ## Run it
 

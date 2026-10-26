@@ -14,6 +14,16 @@ interface GameSocket {
   requestRematch: () => void;
 }
 
+/** Often enough to stay well inside a 15-minute idle timeout on free hosting. */
+const PING_INTERVAL_MS = 4 * 60 * 1000;
+
+function socketBase(): string {
+  const configured = import.meta.env.VITE_BACKEND_WS_URL;
+  if (configured) return configured.replace(/\/$/, "");
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  return `${protocol}://${window.location.host}`;
+}
+
 export function useGameSocket(gameId: string, token: string | null): GameSocket {
   const [connected, setConnected] = useState(false);
   const [state, setState] = useState<GameStateMessage | null>(null);
@@ -23,10 +33,15 @@ export function useGameSocket(gameId: string, token: string | null): GameSocket 
   const socketRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
     const query = token ? `?token=${encodeURIComponent(token)}` : "";
-    const socket = new WebSocket(`${protocol}://${window.location.host}/ws/games/${gameId}${query}`);
+    const socket = new WebSocket(`${socketBase()}/ws/games/${gameId}${query}`);
     socketRef.current = socket;
+
+    // While a player thinks, nothing else is sent - this keeps the connection (and a free
+    // host that sleeps when idle) awake through a long think.
+    const ping = setInterval(() => {
+      if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "PING" }));
+    }, PING_INTERVAL_MS);
 
     socket.onopen = () => setConnected(true);
     socket.onclose = () => setConnected(false);
@@ -49,7 +64,10 @@ export function useGameSocket(gameId: string, token: string | null): GameSocket 
       }
     };
 
-    return () => socket.close();
+    return () => {
+      clearInterval(ping);
+      socket.close();
+    };
   }, [gameId, token]);
 
   function send(payload: object) {

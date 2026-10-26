@@ -1,0 +1,28 @@
+# Render Blueprint for the backend (Java + Stockfish). The frontend is on Vercel (see
+# frontend/vercel.json) and the database on Supabase - see docs/DEPLOY.md.
+services:
+  - type: web
+    name: chess960-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /actuator/health
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - backend/**
+    envVars:
+      # Filled in on Render's dashboard from Supabase's "Session pooler" connection details.
+      - key: DB_URL
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_SCHEMA
+        value: chess960
+      - key: SECURE_COOKIE
+        value: "true"
+      - key: ALLOWED_ORIGINS
+        value: "https://*.vercel.app"
