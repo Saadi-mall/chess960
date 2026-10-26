@@ -1,7 +1,8 @@
 # Chess960
 
 A Chess960 (Fischer Random) web app: play it live with a friend, set up any starting
-position and analyze it with Stockfish, or work through a daily puzzle-style lesson.
+position and analyze it with Stockfish, or work through a daily lesson - optionally with an
+account that keeps your streak and results.
 
 Built for a Chess.com take-home. See [docs/DECISIONS.md](docs/DECISIONS.md) for the main
 design decisions, trade-offs, time breakdown, and what's next; see
@@ -35,11 +36,16 @@ for normal use - the frontend talks to the backend through nginx, which proxies 
   of each side's own pieces are blocking their fastest castling route, a weakest-square
   score), then play out moves against a live Stockfish evaluation.
 - **Learn** - one daily position, the same for everyone, picked deterministically from the
-  date. A short guided lesson: the overview card, find the weakest square, find White's
-  best first move, find Black's best reply (the lesson always advances along Stockfish's
-  actual line, whether your guess was right or not), then a button to play that exact
-  position with a friend. Keeps a daily streak in your browser's local storage.
-- **Chess.com import** (optional, linked from the Analyze tab) - look up a Chess.com
+  date. The lesson explains the position's key features (castling routes, long-diagonal
+  bishops and what they're aimed at, undefended pawns) with arrows on the board, asks for
+  the weakest pawn, asks you to find Stockfish's three best moves for White and then
+  Black's three best replies (in any order), and finishes with both sides' plans from
+  Stockfish's main line drawn as arrows. Every sentence is a template filled with computed
+  data or Stockfish's actual choices. Then a button to play that position with a friend.
+- **Accounts** - sign up with an email and password to keep your daily-lesson streak and
+  results on the server (`/progress`); signed-in answers are graded by the server. Guests
+  keep a streak in their browser instead.
+- **Chess.com stats** (optional, its own tab) - look up a Chess.com
   player's public game history and see simple Chess960 stats: total games, win/loss/draw,
   win rate, and a breakdown by time class.
 
@@ -64,7 +70,7 @@ in `k8s/` for a cluster deployment.
 
 ## Running the tests
 
-Backend (85 tests - the rules engine's perft suite, castling edge cases, SAN notation, the position
+Backend (100 tests - the rules engine's perft suite, castling edge cases, SAN notation, lesson building and grading, accounts and streaks, the position
 analyzer, the game/clock/draw/rematch logic, the Stockfish UCI wrapper against the real
 binary, and the Chess.com import's classification logic):
 

@@ -142,6 +142,45 @@ failed month without failing the whole import, since Chess.com's API has no way 
 "just the Chess960 games" - importing means downloading everything and filtering
 client-side, which gets slow sequentially for an active player.
 
+**Daily lessons are built on the server from Stockfish's top lines.** Each day's lesson is computed once by `LessonBuilder` and cached in memory (rebuilt after a
+restart, warmed up at startup so the first visitor doesn't wait): two MultiPV-3 searches,
+one from the start and one after White's best move. Everything the lesson says is a fixed
+template filled with numbers read off the board or moves Stockfish chose - no hand-written
+chess advice, per the spec's "never made-up chess claims":
+
+- **Key features**: castling routes and how many own pieces block them, what a bishop on a
+  long diagonal will look at once its pawn moves, which pawns start undefended. Starting
+  positions are mirror-symmetric, so features are described from White's side once.
+- **Weakest pawn** rather than weakest square, since back-rank pieces counted as "weak
+  squares" made the old question misleading. Fewest defenders wins; ties are broken by how
+  many enemy bishops/queens are already aimed at the pawn down a diagonal (through only
+  their own pawns); any pawn still tied is accepted.
+- **Three best moves, any order**, for White and then for Black after White's best move.
+  The lesson sends every legal move's SAN so the page can name a guess without knowing the
+  rules; guesses are compared in the board's move encoding.
+- **Plans** come last, because they'd give away the best-move answers: each side's moves
+  from Stockfish's main line, drawn as arrows, with the line itself replayable in the
+  notation column.
+
+**Accounts: email and password, sessions in an HttpOnly cookie.** Chess.com OAuth is only issued to developers Chess.com approves, so it wasn't something
+that could be built and tested here; plain email/password was chosen over third-party
+OAuth. Passwords are BCrypt-hashed (`spring-security-crypto` only - no Spring Security
+filter chain, since there are three protected endpoints). A session is a random 256-bit
+token in an HttpOnly, SameSite=Lax cookie; the database stores only its SHA-256, so a
+leaked table can't be used to sign in. SameSite=Lax plus JSON-only POST endpoints is the
+CSRF protection. Wrong password and unknown email get the same response, and an unknown
+email still runs a BCrypt comparison so the timing matches.
+
+Signed-in learners send their **answers**, not their score: the server grades them against
+its own copy of today's lesson, keeps only the first result per day, and only accepts
+today's lesson, so a streak can't be faked or backfilled from the browser. Streaks are
+computed from the stored dates (`Streaks`); a streak ending yesterday still counts until
+today's lesson is missed. Guests keep the old per-browser streak.
+
+**The analysis board doesn't wait for Stockfish.** A move in Analyze makes two requests: the rules-only `/api/positions/move` (~30ms) whose
+position goes on the board immediately, then `/api/analysis/evaluate` in the background,
+whose result is filled in when it arrives (and dropped if that move was undone meanwhile).
+
 ## Bugs perft (and other testing) actually caught
 
 Called out here because they're the clearest evidence the testing was real, not
@@ -238,6 +277,10 @@ decorative:
   pieces, so any destination with a piece on it (a capture, or the own rook for castling)
   was hidden. Hints are now drawn above the pieces, as a ring on occupied squares.
 
+- **The analysis board lagged behind every move.** Each move went to an endpoint that ran
+  Stockfish's 800ms search before answering, so the piece only moved about a second after
+  it was played. Split into a fast rules request and a background evaluation (see above).
+
 ## What I'd do next with more time
 
 - **Shared game state**, so the backend can run more than one replica. Most likely Redis:
@@ -251,9 +294,15 @@ decorative:
 - **Branching lines in Analyze.** You can now step back through the moves played (and Undo
   the last one), but playing a different move from an earlier position isn't supported -
   moves only go on the end of the line. A small tree of variations would fix that.
-- **Multi-PV Stockfish output** (show the top 2-3 moves and their evaluations, not just
-  the best one) - `go` already supports `MultiPV`, it's a small change to `StockfishEngine`
-  and a slightly richer `EngineEvaluation`.
+- **Multi-PV in Analyze.** `StockfishEngine.topLines` already powers the lessons; the
+  Analyze tab could show the top three lines too instead of just the best move.
+- **Games played from a position.** There's no public database to search Chess960 games by
+  starting position. The plan: store finished games here (see "Persist finished games"),
+  list the ones from today's lesson position, and match a signed-in user's own Chess.com
+  960 games by their `SetUp`/`FEN` PGN headers.
+- **Account hardening**: rate-limit log-in attempts, email verification, password reset,
+  and moving a guest's browser streak into their account when they sign up. Chess.com
+  OAuth as a second way to sign in, once approved credentials exist.
 - **A real opponent-strength option for Learn/Analyze** - right now Stockfish always plays
   at full strength; `UCI_LimitStrength` / `UCI_Elo` would let the Learn tab's quizzes scale
   to a beginner.
