@@ -64,7 +64,7 @@ in `k8s/` for a cluster deployment.
 
 ## Running the tests
 
-Backend (84 tests - the rules engine's perft suite, castling edge cases, SAN notation, the position
+Backend (85 tests - the rules engine's perft suite, castling edge cases, SAN notation, the position
 analyzer, the game/clock/draw/rematch logic, the Stockfish UCI wrapper against the real
 binary, and the Chess.com import's classification logic):
 
@@ -77,7 +77,8 @@ This needs a JDK 21 and a `stockfish` binary on your `PATH` (`brew install stock
 macOS); without Stockfish, everything except `StockfishEngineTest` still passes.
 
 Frontend (type checking, linting, a production build, and a small Vitest + React Testing
-Library suite covering the Learn tab's quiz interaction - everything else was verified
+Library suite covering the Learn tab's quiz interaction and the move-list back/forward
+logic - everything else was verified
 manually in-browser through each tab, including click-to-move, drag-to-move, the promotion
 picker, board flipping, and mobile widths):
 

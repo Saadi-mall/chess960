@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { formatClock } from "./clock";
 
 interface ClockDisplayProps {
   millis: number;
@@ -26,11 +27,4 @@ export function ClockDisplay({ millis, isTicking }: ClockDisplayProps) {
       {formatClock(displayMillis)}
     </div>
   );
-}
-
-export function formatClock(millis: number): string {
-  const totalSeconds = Math.ceil(millis / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }

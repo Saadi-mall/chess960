@@ -3,13 +3,17 @@ import type { PositionMode } from "./previewApi";
 
 const MODE_OPTIONS = [
   { value: "RANDOM" as const, label: "Random" },
-  { value: "NUMBER" as const, label: "Number" },
+  { value: "NUMBER" as const, label: "By number" },
   { value: "DAILY" as const, label: "Today's lesson" },
 ];
 
-interface PositionPickerProps {
+/** Which kind of starting position - sits in the page's title row. */
+export function PositionModeControl({ mode, onChange }: { mode: PositionMode; onChange: (mode: PositionMode) => void }) {
+  return <SegmentedControl aria-label="Starting position" options={MODE_OPTIONS} value={mode} onChange={onChange} />;
+}
+
+interface PositionDetailProps {
   mode: PositionMode;
-  onModeChange: (mode: PositionMode) => void;
   number: number;
   onNumberChange: (number: number) => void;
   onShuffle: () => void;
@@ -17,41 +21,32 @@ interface PositionPickerProps {
   resolvedNumber: number | null;
 }
 
-/** The "which starting position" controls shared by the Play and Analyze setup screens. */
-export function PositionPicker({
-  mode,
-  onModeChange,
-  number,
-  onNumberChange,
-  onShuffle,
-  resolvedNumber,
-}: PositionPickerProps) {
+/** The settings-card section for the chosen mode: a number field, a shuffle button, or
+ * just which position today's is. */
+export function PositionDetail({ mode, number, onNumberChange, onShuffle, resolvedNumber }: PositionDetailProps) {
+  const label = resolvedNumber === null ? "Loading..." : `Position #${resolvedNumber}${resolvedNumber === 518 ? " (standard chess)" : ""}`;
   return (
-    <div className="form-section">
-      <span className="form-section-label">Starting position</span>
-      <SegmentedControl aria-label="Starting position" options={MODE_OPTIONS} value={mode} onChange={onModeChange} />
-
-      <div className="position-picker-row">
-        {mode === "NUMBER" && (
-          <input
-            type="number"
-            min={0}
-            max={959}
-            value={number}
-            onChange={(e) => onNumberChange(Number(e.target.value))}
-            className="number-input"
-            aria-label="Chess960 position number"
-          />
-        )}
-        {mode === "RANDOM" && (
-          <button type="button" className="secondary-button" onClick={onShuffle}>
-            Shuffle again
-          </button>
-        )}
-        <span className="position-number">
-          {resolvedNumber === null ? "" : `#${resolvedNumber}${resolvedNumber === 518 ? " · standard chess" : ""}`}
-        </span>
-      </div>
+    <div className="side-section">
+      <span className="side-label">Starting position</span>
+      {mode === "NUMBER" && (
+        <input
+          type="number"
+          min={0}
+          max={959}
+          value={number}
+          onChange={(e) => onNumberChange(Number(e.target.value))}
+          className="number-input"
+          aria-label="Chess960 position number (0-959)"
+        />
+      )}
+      {mode === "RANDOM" && (
+        <button type="button" className="secondary-button" style={{ width: "100%" }} onClick={onShuffle}>
+          Shuffle again
+        </button>
+      )}
+      <p className="side-text" style={{ marginTop: mode === "DAILY" ? 0 : "var(--space-2)" }}>
+        <strong>{label}</strong>
+      </p>
     </div>
   );
 }

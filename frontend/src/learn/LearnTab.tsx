@@ -5,8 +5,11 @@ import { OverviewCard } from "../analyze/OverviewCard";
 import type { Evaluation, Overview } from "../analyze/types";
 import { Chessboard, type SquareMarker } from "../board/Chessboard";
 import type { LegalMove } from "../board/types";
-import { BoardLayout } from "../layout/BoardLayout";
+import { ChessPage, IdentityCard, SideCard } from "../layout/ChessPage";
+import { NotationPanel } from "../layout/NotationPanel";
 import { PlayerBar } from "../layout/PlayerBar";
+import { PreferenceToggles } from "../layout/Toggles";
+import { useHistoryNav } from "../layout/useHistoryNav";
 import { createGame } from "../play/api";
 import { setSeat } from "../play/storage";
 import { getStreak, recordCompletionToday } from "./streak";
@@ -47,6 +50,11 @@ export function LearnTab() {
   const [error, setError] = useState<string | null>(null);
   const [streak, setStreak] = useState(getStreak());
   const [creatingGame, setCreatingGame] = useState(false);
+  // The Stockfish line the lesson walks through, for the notation column.
+  const [line, setLine] = useState<string[]>([]);
+  const [lineFens, setLineFens] = useState<string[]>([]);
+  const [flipped, setFlipped] = useState(false);
+  const nav = useHistoryNav(line.length);
 
   useEffect(() => {
     (async () => {
@@ -55,6 +63,7 @@ export function LearnTab() {
         const response = await fetchStartingPosition(daily.number);
         setDailyNumber(daily.number);
         setFen(response.fen);
+        setLineFens([response.fen]);
         setLegalMoves(response.legalMoves);
         setOverview(response.overview);
         setEvaluation(response.evaluation);
@@ -119,6 +128,8 @@ export function LearnTab() {
       // position is always the well-analyzed one.
       const response = await playMove(fen, best.from, best.to, best.promotion);
       setFen(response.fen);
+      setLine((l) => [...l, response.lastMoveSan ?? bestSan]);
+      setLineFens((f) => [...f, response.fen]);
       setLegalMoves(response.legalMoves);
       setEvaluation(response.evaluation);
       setFeedback(
@@ -197,16 +208,21 @@ export function LearnTab() {
       />
     );
   };
-  const orientation = blackToMove ? "b" : "w";
+  // Each quiz is seen from the side that's moving; the flip button turns it around.
+  const blackAtBottom = blackToMove !== flipped;
+  const orientation = blackAtBottom ? "b" : "w";
 
   let board = null;
-  if (fen) {
+  if (fen && !nav.isLatest) {
+    board = <Chessboard fen={lineFens[nav.ply] ?? fen} legalMoves={[]} orientation={orientation} disabled />;
+  } else if (fen) {
     if (step === "WEAKEST_SQUARE") {
       board = (
         <Chessboard
           key={step}
           fen={fen}
           legalMoves={[]}
+          orientation={orientation}
           onSquareClick={handlePickSquare}
           markers={markers}
           disabled={answered}
@@ -225,7 +241,16 @@ export function LearnTab() {
         />
       );
     } else {
-      board = <Chessboard key={step} fen={fen} legalMoves={[]} animateEntry={step === "OVERVIEW"} disabled />;
+      board = (
+        <Chessboard
+          key={step}
+          fen={fen}
+          legalMoves={[]}
+          orientation={orientation}
+          animateEntry={step === "OVERVIEW"}
+          disabled
+        />
+      );
     }
   }
 
@@ -240,29 +265,29 @@ export function LearnTab() {
   const canSubmit = step === "WEAKEST_SQUARE" ? pickedSquare !== null : proposedMove !== null;
   const currentIndex = STEPS.findIndex((s) => s.step === step);
 
-  let action;
+  let action = null;
   if (step === "OVERVIEW") {
     action = (
-      <button className="primary-button" onClick={advance}>
+      <button className="big-button" onClick={advance}>
         Start
       </button>
     );
   } else if (step === "DONE") {
     action = (
-      <button className="primary-button" onClick={handlePlayWithFriend} disabled={creatingGame}>
+      <button className="big-button" onClick={handlePlayWithFriend} disabled={creatingGame}>
         {creatingGame ? "Starting..." : "Play this position with a friend"}
       </button>
     );
   } else if (answered) {
     action = (
-      <button className="primary-button" onClick={advance}>
+      <button className="big-button" onClick={advance}>
         {step === "BLACK_MOVE" ? "Finish" : "Next"}
       </button>
     );
   } else if (step !== "LOADING") {
     action = (
       <button
-        className="primary-button"
+        className="big-button"
         disabled={!canSubmit || checking}
         onClick={() =>
           step === "WEAKEST_SQUARE" ? handleSubmitWeakestSquare() : handleSubmitMove(blackToMove ? "black" : "white")
@@ -274,65 +299,73 @@ export function LearnTab() {
   }
 
   return (
-    <BoardLayout
-      top={bar(orientation === "w" ? "black" : "white")}
-      board={board}
-      bottom={bar(orientation === "w" ? "white" : "black")}
-      panel={
+    <ChessPage
+      title="Daily lesson"
+      subtitle="One Chess960 position a day, the same for everyone"
+      headerAside={
+        <span className="streak-pill">
+          {streak.currentStreak > 0 ? `${streak.currentStreak} day streak` : "Start a streak today"}
+        </span>
+      }
+      left={
         <>
-          <div className="panel-section">
-            <p className="panel-heading">Daily lesson{dailyNumber !== null ? ` · Position #${dailyNumber}` : ""}</p>
-            <p className="learn-streak">
-              {streak.currentStreak > 0
-                ? `${streak.currentStreak} day streak`
-                : "Complete today's lesson to start a streak"}
-            </p>
-          </div>
+          <IdentityCard
+            initial="#"
+            tone="accent"
+            title={dailyNumber === null ? "Today's position" : `Position #${dailyNumber}`}
+            detail="Today's position"
+          />
+          <SideCard>
+            <div className="side-section">
+              <span className="side-label">Lesson</span>
+              <ol className="learn-steps">
+                {STEPS.map((s, i) => {
+                  const state = step === "DONE" || i < currentIndex ? "done" : i === currentIndex ? "current" : "todo";
+                  return (
+                    <li key={s.step} className={`learn-step learn-step-${state}`}>
+                      <span className="learn-step-number">{i + 1}</span>
+                      {s.label}
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
 
-          <div className="panel-section">
-            <ol className="learn-steps">
-              {STEPS.map((s, i) => {
-                const state = step === "DONE" || i < currentIndex ? "done" : i === currentIndex ? "current" : "todo";
-                return (
-                  <li key={s.step} className={`learn-step learn-step-${state}`}>
-                    <span className="learn-step-number">{i + 1}</span>
-                    {s.label}
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
-
-          <div className="panel-section panel-section-grow learn-body">
-            {step === "LOADING" && !error && <p className="panel-note">Loading today's lesson...</p>}
-            {step === "OVERVIEW" && overview && (
-              <>
-                <OverviewCard overview={overview} />
-                <p className="panel-note">A few facts about today's position. Then find the best moves.</p>
-              </>
-            )}
-            {prompt && <p className="learn-prompt">{prompt}</p>}
-            {feedback && (
-              <p
-                className={`learn-feedback ${
-                  lastCorrect === true ? "learn-feedback-correct" : lastCorrect === false ? "learn-feedback-wrong" : ""
-                }`}
-              >
-                {feedback}
-              </p>
-            )}
-            {step === "DONE" && (
-              <p className="learn-prompt">
-                Lesson complete - {streak.currentStreak} day{streak.currentStreak === 1 ? "" : "s"} in a row. Come
-                back tomorrow for a new position.
-              </p>
-            )}
-            {error && <p className="error-text">{error}</p>}
-          </div>
-
-          {action && <div className="panel-section">{action}</div>}
+            <div className="side-section learn-body">
+              {step === "LOADING" && !error && <p className="side-text muted">Loading today's lesson...</p>}
+              {step === "OVERVIEW" && overview && (
+                <>
+                  <OverviewCard overview={overview} />
+                  <p className="side-text muted">A few facts about today's position. Then find the best moves.</p>
+                </>
+              )}
+              {prompt && <p className="learn-prompt">{prompt}</p>}
+              {feedback && (
+                <p
+                  className={`learn-feedback ${
+                    lastCorrect === true ? "learn-feedback-correct" : lastCorrect === false ? "learn-feedback-wrong" : ""
+                  }`}
+                >
+                  {feedback}
+                </p>
+              )}
+              {step === "DONE" && (
+                <p className="learn-prompt">
+                  Lesson complete - {streak.currentStreak} day{streak.currentStreak === 1 ? "" : "s"} in a row. Come
+                  back tomorrow for a new position.
+                </p>
+              )}
+              {error && <p className="error-text">{error}</p>}
+            </div>
+          </SideCard>
+          {action}
+          <PreferenceToggles />
         </>
       }
+      top={bar(blackAtBottom ? "white" : "black")}
+      board={board}
+      bottom={bar(blackAtBottom ? "black" : "white")}
+      right={<NotationPanel moves={line} nav={nav} onFlip={() => setFlipped((f) => !f)} />}
     />
   );
 }

@@ -1,182 +1,370 @@
-/* Generic building blocks shared across tabs: the board+panel page layout (BoardLayout),
-   player bars, the notation table, the confirm dialog, form controls and buttons. */
+/* The shared page shell (ChessPage) and the pieces every tab puts in it: the three-column
+   card, left-column cards and toggles, player bars, the notation column, the dialog, form
+   controls and buttons. */
 
-/* ---------- Page layout ---------- */
+:root {
+  /* Proportions taken from the reference design: a 1200px card holding a ~228px control
+     column, the board, and a ~252px notation column. */
+  --left-w: 228px;
+  --right-w: 252px;
+  --col-gap: var(--space-4);
+  --bar-h: 3rem;
+  --bar-gap: var(--space-3);
+}
 
-/* container-type: size lets .board-frame size itself from this box's width *and* height. */
-.board-page {
+/* ---------- Page: title row, then one card ---------- */
+
+.page {
+  width: 100%;
+  max-width: 1200px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.page-title {
+  font-size: var(--text-xl);
+  margin: 0;
+}
+
+.page-subtitle {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-base);
+}
+
+/* container-type: size lets the board column size itself from the card's width *and*
+   height (cqw / cqh). */
+.page-card {
   flex: 1;
   min-height: 0;
   container-type: size;
-  display: flex;
-  justify-content: center;
-  gap: var(--space-5);
+  display: grid;
+  grid-template-columns: var(--left-w) auto var(--right-w);
+  justify-content: space-between;
+  gap: var(--col-gap);
+  padding: var(--space-5);
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
 }
 
-.board-stage {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-}
-
-/* Board plus the two player bars. Its width is the biggest square that fits: the page
-   height minus the two bars and their gaps (6.5rem), or the page width minus the
-   panel's minimum width. */
-.board-frame {
-  width: min(100cqh - 6.5rem, 100cqw - var(--panel-width) - var(--space-5));
+.left-col,
+.right-col {
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
+}
+
+.left-col {
+  overflow-y: auto;
+}
+
+/* The board and its two player bars. The board is the biggest square that fits: the
+   card's height minus both bars and gaps, or its width minus the two side columns. */
+.center-col {
+  width: min(100cqh - 2 * var(--bar-h) - 2 * var(--bar-gap), 100cqw - var(--left-w) - var(--right-w) - 2 * var(--col-gap));
+  display: flex;
+  flex-direction: column;
+  gap: var(--bar-gap);
 }
 
 .board-placeholder {
   width: 100%;
   aspect-ratio: 1;
   border-radius: var(--radius-sm);
-  background: var(--color-panel);
+  background: var(--color-raised);
 }
 
-/* Takes whatever width the board leaves, between --panel-width and 520px. */
-.side-panel {
-  flex: 1 1 var(--panel-width);
-  min-width: var(--panel-width);
-  max-width: 520px;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  background: var(--color-panel);
+/* ---------- Left column ---------- */
+
+.side-card {
+  background: var(--color-raised);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-card);
-  overflow: hidden;
+  border-radius: 10px;
 }
 
-.panel-section {
+.side-section {
   padding: var(--space-4);
-  border-bottom: 1px solid var(--color-border);
 }
 
-.panel-section:last-child {
-  border-bottom: none;
+.side-section + .side-section {
+  border-top: 1px solid var(--color-border);
 }
 
-/* The section that soaks up the panel's spare height - usually the notation. */
-.panel-section-grow {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.panel-section h2 {
-  font-size: var(--text-lg);
+.side-label {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
   margin: 0 0 var(--space-3);
 }
 
-.panel-heading {
-  font-size: var(--text-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-muted);
-  margin: 0 0 var(--space-2);
+.side-text {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
 }
 
-.panel-status {
+.side-text + .side-text {
+  margin-top: var(--space-2);
+}
+
+.side-status {
+  margin: 0;
   font-family: var(--font-heading);
   font-size: var(--text-md);
   font-weight: 600;
-  margin: 0;
 }
 
-.panel-note {
-  color: var(--color-text-muted);
-  font-size: var(--text-sm);
-  margin: var(--space-1) 0 0;
-}
-
-.button-row {
+.identity-card {
   display: flex;
-  gap: var(--space-2);
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
 }
 
-.button-row > * {
-  flex: 1;
-}
-
-.stack {
+.identity-text {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.identity-title {
+  font-weight: 600;
+}
+
+.identity-detail {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+/* The big call-to-action under the settings card ("Start game"). */
+.big-button {
+  width: 100%;
+  min-height: 3.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: var(--space-2);
+  border: none;
+  border-radius: 10px;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  font-size: var(--text-base);
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: filter 120ms ease;
+}
+
+.big-button img {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.big-button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.big-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.big-button-secondary {
+  background: var(--color-raised);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  box-shadow: none;
+}
+
+.toggles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-1) 0;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-sm);
+}
+
+.switch {
+  position: relative;
+  width: 2.25rem;
+  height: 1.3rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  cursor: pointer;
+  padding: 0;
+  transition: background 150ms ease;
+}
+
+.switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(1.3rem - 6px);
+  height: calc(1.3rem - 6px);
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  transition: transform 150ms ease, background 150ms ease;
+}
+
+.switch-on {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.switch-on .switch-knob {
+  background: var(--color-accent-contrast);
+  transform: translateX(0.95rem);
+}
+
+/* A grid of equal buttons, like the time-control picker. */
+.option-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-1);
+}
+
+.option-grid button {
+  height: 2.6rem;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.option-grid button:hover {
+  background: var(--color-raised-hover);
+}
+
+.option-grid button.selected {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  font-weight: 600;
 }
 
 /* ---------- Player bars ---------- */
 
 .player-bar {
-  height: 2.75rem;
+  height: var(--bar-h);
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: 0 var(--space-1);
 }
 
-.player-chip {
+.avatar {
+  position: relative;
   flex: 0 0 auto;
-  width: 1.6rem;
-  height: 1.6rem;
-  border-radius: 50%;
+  width: var(--bar-h);
+  height: var(--bar-h);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-lg);
+  font-weight: 600;
   border: 1px solid var(--color-border);
 }
 
-.player-chip-white {
+.avatar-round {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  font-size: var(--text-md);
+}
+
+.avatar-white {
   background: #f6eedf;
+  color: #241c10;
 }
 
-.player-chip-black {
+.avatar-black {
   background: #1c1610;
+  color: #f3e9d8;
 }
 
-.player-bar-active .player-chip {
-  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent);
+.avatar-accent {
+  background: var(--color-accent-muted);
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.online-dot {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  background: var(--color-success);
+  border: 2px solid var(--color-panel);
 }
 
 .player-text {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  line-height: 1.2;
+  line-height: 1.3;
 }
 
 .player-name {
   font-weight: 600;
-  font-size: var(--text-base);
 }
 
 .player-detail {
   color: var(--color-text-muted);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
 }
 
-.player-bar > :last-child:not(.player-text) {
+.player-side {
   margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.player-piece {
+  width: 1.1rem;
+  height: 1.1rem;
+  opacity: 0.85;
 }
 
 .clock {
-  font-family: var(--font-heading);
-  font-size: var(--text-lg);
+  font-size: var(--text-base);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--color-raised);
   border: 1px solid var(--color-border);
-  min-width: 5.5rem;
-  text-align: center;
 }
 
 .clock-active {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: var(--color-accent-contrast);
+  background: var(--color-success-bg);
+  border-color: var(--color-success);
+  color: var(--color-success);
 }
 
 .clock-low {
@@ -184,55 +372,203 @@
 }
 
 .clock-active.clock-low {
-  background: var(--color-danger);
+  background: var(--color-danger-bg);
   border-color: var(--color-danger);
-  color: #fff;
 }
 
-/* ---------- Notation ---------- */
+/* ---------- Right column: notation ---------- */
 
-.move-list {
+.right-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  min-height: 2.25rem;
+}
+
+.icon-button {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-raised);
+  color: var(--color-text);
+  font-size: var(--text-base);
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+
+.icon-button:hover:not(:disabled) {
+  border-color: var(--color-accent);
+}
+
+.icon-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.icon-button-danger {
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.move-table {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  margin: 0 calc(-1 * var(--space-2));
+  background: var(--color-raised);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
 }
 
-.move-list table {
+.move-table table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--text-base);
   font-variant-numeric: tabular-nums;
 }
 
-.move-list tr:nth-child(odd) {
-  background: var(--color-raised);
+.move-table tr + tr td {
+  border-top: 1px solid var(--color-border);
 }
 
-.move-list td {
-  padding: var(--space-1) var(--space-2);
+.move-table td {
+  height: 2.1rem;
+  padding: 0 var(--space-1);
 }
 
 .move-number {
   width: 2.75rem;
+  text-align: center;
   color: var(--color-text-muted);
   font-size: var(--text-sm);
 }
 
 .move-cell {
-  width: 45%;
-  font-weight: 500;
+  width: 42%;
 }
 
-.move-latest {
+.move-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.move-button:hover {
+  background: var(--color-raised-hover);
+}
+
+.move-current {
+  background: var(--color-accent-muted);
   color: var(--color-accent);
   font-weight: 700;
 }
 
-.move-list-empty {
+.move-piece {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+/* Black figurines are black-filled; on the dark theme's table they need an outline. */
+:root:not([data-theme="light"]) .move-piece-b,
+:root:not([data-theme="light"]) .player-piece-b {
+  filter: drop-shadow(0 0 0.6px #f3e9d8) drop-shadow(0 0 0.6px #f3e9d8);
+}
+
+.move-table-empty {
+  margin: var(--space-4);
   color: var(--color-text-muted);
   font-size: var(--text-sm);
-  margin: 0 var(--space-2);
+}
+
+.nav-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.nav-group {
+  flex: 1;
+  display: flex;
+  background: var(--color-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.nav-group button {
+  flex: 1;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.nav-group button + button {
+  border-left: 1px solid var(--color-border);
+}
+
+.nav-group button:hover:not(:disabled) {
+  background: var(--color-raised-hover);
+}
+
+.nav-group button:disabled {
+  color: var(--color-text-muted);
+  opacity: 0.5;
+  cursor: default;
+}
+
+.timeline {
+  position: relative;
+  height: 1rem;
+  cursor: pointer;
+}
+
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 3px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: var(--color-border);
+}
+
+.timeline-fill {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 3px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: var(--color-accent);
+}
+
+.timeline-thumb {
+  position: absolute;
+  top: 50%;
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--color-panel);
+  border: 2px solid var(--color-accent);
 }
 
 /* ---------- Dialog ---------- */
@@ -252,7 +588,7 @@
   width: min(100%, 380px);
   background: var(--color-panel);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: 12px;
   box-shadow: var(--shadow-board);
   padding: var(--space-5);
 }
@@ -278,47 +614,12 @@
 
 /* ---------- Form controls ---------- */
 
-.form-section + .form-section {
-  margin-top: var(--space-4);
-}
-
-.form-section-label {
-  display: block;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-muted);
-  margin-bottom: var(--space-2);
-}
-
-.position-picker-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-top: var(--space-2);
-  min-height: 2.4rem;
-}
-
-.position-picker-row .number-input,
-.position-picker-row .secondary-button {
-  flex: 0 0 9rem;
-  width: 9rem;
-}
-
-.position-number {
-  font-family: var(--font-heading);
-  font-weight: 600;
-  color: var(--color-accent);
-}
-
 .segmented-control {
   display: flex;
-  gap: var(--space-1);
-  background: var(--color-bg);
+  background: var(--color-raised);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  padding: var(--space-1);
+  overflow: hidden;
 }
 
 .segmented-control button {
@@ -326,13 +627,17 @@
   border: none;
   background: transparent;
   color: var(--color-text-muted);
-  padding: var(--space-2);
-  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-4);
   font-size: var(--text-sm);
+  font-weight: 500;
   font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
   transition: background 120ms ease, color 120ms ease;
+}
+
+.segmented-control button + button {
+  border-left: 1px solid var(--color-border);
 }
 
 .segmented-control button:hover {
@@ -347,7 +652,7 @@
 
 .text-input,
 .number-input {
-  background: var(--color-raised);
+  background: var(--color-bg);
   color: var(--color-text);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -373,6 +678,17 @@
   -moz-appearance: textfield;
 }
 
+.input-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.input-row .text-input {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
 /* ---------- Buttons ---------- */
 
 .primary-button {
@@ -385,11 +701,10 @@
   font-size: var(--text-base);
   font-weight: 600;
   cursor: pointer;
-  transition: filter 120ms ease;
 }
 
 .primary-button:hover:not(:disabled) {
-  filter: brightness(1.1);
+  filter: brightness(1.08);
 }
 
 .primary-button:disabled {
@@ -411,12 +726,10 @@
   font-size: var(--text-sm);
   font-weight: 500;
   cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease;
 }
 
 .secondary-button:hover:not(:disabled) {
   border-color: var(--color-accent);
-  background: var(--color-raised-hover);
 }
 
 .secondary-button:disabled {
@@ -424,15 +737,24 @@
   cursor: default;
 }
 
+.button-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.button-row > * {
+  flex: 1;
+}
+
 /* ---------- Text ---------- */
 
-.status-text {
+.muted {
   color: var(--color-text-muted);
-  text-align: center;
 }
 
 .error-text {
   color: var(--color-danger);
+  font-size: var(--text-sm);
   margin: var(--space-2) 0 0;
 }
 
@@ -440,35 +762,51 @@
   color: var(--color-success);
 }
 
-/* Self-centers vertically within .app-main's column flex - used by pages without a board. */
-.centered-page {
-  margin-top: auto;
-  margin-bottom: auto;
-  width: 100%;
-}
+/* ---------- Narrow screens: board, then moves, then controls ---------- */
 
-/* ---------- Narrow screens: board on top, panel below ---------- */
-
-@media (max-width: 900px) {
-  .board-page {
-    flex-direction: column;
-    flex: 0 0 auto;
+@media (max-width: 1024px) {
+  .page-card {
     container-type: normal;
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-3);
     gap: var(--space-4);
   }
 
-  .board-frame {
+  .center-col {
     width: 100%;
+    order: 1;
   }
 
-  .side-panel {
-    flex: 0 0 auto;
-    min-width: 0;
-    max-width: none;
+  .left-col {
+    order: 2;
     overflow: visible;
   }
 
-  .move-list {
+  .right-col {
+    order: 3;
+  }
+
+  .move-table {
     max-height: 14rem;
+    flex: 0 0 auto;
+  }
+
+  .page-header {
+    flex-direction: column;
+  }
+}
+
+@media (min-width: 1025px) and (max-height: 900px) {
+  :root {
+    --bar-gap: var(--space-2);
+  }
+
+  .page-header {
+    margin-bottom: var(--space-3);
+  }
+
+  .page-card {
+    padding: var(--space-4);
   }
 }

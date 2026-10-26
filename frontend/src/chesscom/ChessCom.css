@@ -1,90 +1,72 @@
-.chesscom-page {
-  max-width: 480px;
-  margin-left: auto;
-  margin-right: auto;
-  text-align: center;
+.page-card-simple {
+  padding: var(--space-5);
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
 }
 
 .chesscom-form {
-  display: flex;
-  gap: 0.5rem;
-  margin: 1rem 0;
-}
-
-.chesscom-form input {
-  flex: 1;
-  padding: 0.5rem 0.7rem;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: var(--color-panel);
-  color: var(--color-text);
-  font-size: 1rem;
+  max-width: 520px;
 }
 
 .chesscom-form .primary-button {
   width: auto;
-  padding: 0.5rem 1.1rem;
+  padding: var(--space-2) var(--space-5);
 }
 
 .chesscom-stats {
-  margin-top: 1.5rem;
+  margin-top: var(--space-5);
 }
 
 .chesscom-summary {
-  display: flex;
-  justify-content: center;
-  gap: 1.5rem;
-  flex-wrap: wrap;
-  margin-bottom: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
 }
 
 .chesscom-summary > div {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  padding: var(--space-4);
+  background: var(--color-raised);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
 }
 
 .chesscom-number {
   font-family: var(--font-heading);
-  font-size: 1.6rem;
-}
-
-.chesscom-summary span:last-child {
-  font-size: 0.8rem;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  color: var(--color-text);
 }
 
 .chesscom-time-classes {
   display: flex;
-  justify-content: center;
-  gap: 1.25rem;
   flex-wrap: wrap;
+  gap: var(--space-3);
   margin: 0;
 }
 
-.chesscom-time-classes div {
+.chesscom-time-classes > div {
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
 }
 
 .chesscom-time-classes dt {
-  text-transform: capitalize;
   color: var(--color-text-muted);
-  font-size: 0.85rem;
+  text-transform: capitalize;
 }
 
 .chesscom-time-classes dd {
   margin: 0;
-  font-family: var(--font-heading);
-}
-
-.chesscom-back {
-  margin-top: 2rem;
-}
-
-.chesscom-back a {
-  color: var(--color-accent);
+  font-weight: 600;
 }

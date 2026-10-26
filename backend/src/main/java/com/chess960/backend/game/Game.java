@@ -43,6 +43,9 @@ public final class Game {
     private long lastMoveEpochMillis;
 
     private final List<String> moveHistory = new ArrayList<>();
+    /** The FEN before the first move, then after each move - lets a client step back
+     * through the game without replaying moves itself. One longer than moveHistory. */
+    private final List<String> fenHistory = new ArrayList<>();
     private final Map<String, Integer> positionCounts = new HashMap<>();
 
     public Game(String id, Position position, TimeControl timeControl, int startingNumber) {
@@ -53,6 +56,7 @@ public final class Game {
         this.whiteRemainingMillis = timeControl.initialSeconds() * 1000L;
         this.blackRemainingMillis = timeControl.initialSeconds() * 1000L;
         positionCounts.merge(repetitionKey(), 1, Integer::sum);
+        fenHistory.add(Fen.toShredderFen(position));
     }
 
     public String id() {
@@ -85,6 +89,10 @@ public final class Game {
 
     public synchronized List<String> moveHistory() {
         return List.copyOf(moveHistory);
+    }
+
+    public synchronized List<String> fenHistory() {
+        return List.copyOf(fenHistory);
     }
 
     /** Remaining time right now, accounting for the clock that's currently ticking. */
@@ -166,6 +174,7 @@ public final class Game {
         String san = San.of(position, move);
         position.makeMove(move);
         moveHistory.add(san);
+        fenHistory.add(Fen.toShredderFen(position));
         drawOfferBy = null;
 
         updateStatusAfterMove(mover);

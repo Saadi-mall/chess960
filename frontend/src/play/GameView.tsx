@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Chessboard } from "../board/Chessboard";
-import { BoardLayout } from "../layout/BoardLayout";
+import { ChessPage, IdentityCard, SideCard } from "../layout/ChessPage";
 import { ConfirmDialog } from "../layout/ConfirmDialog";
-import { MoveList } from "../layout/MoveList";
+import { FlagIcon } from "../layout/icons";
+import { NotationPanel } from "../layout/NotationPanel";
 import { PlayerBar } from "../layout/PlayerBar";
+import { PreferenceToggles } from "../layout/Toggles";
+import { useHistoryNav } from "../layout/useHistoryNav";
 import { ClockDisplay } from "./ClockDisplay";
 import { getGameInfo, joinGame } from "./api";
 import { getSeat, setSeat, type StoredSeat } from "./storage";
 import { useGameSocket } from "./useGameSocket";
-import "./Play.css";
 
 const STATUS_LABEL: Record<string, string> = {
   CHECKMATE: "Checkmate",
@@ -32,6 +34,7 @@ export function GameView() {
   const [resolving, setResolving] = useState(!seat);
   const [confirming, setConfirming] = useState<Pending>(null);
   const [copied, setCopied] = useState(false);
+  const [flipped, setFlipped] = useState(false);
   // POST /join claims a seat server-side - not idempotent. A plain "cancelled" flag set
   // from the effect's cleanup doesn't stop that request from actually firing, only from
   // applying its result, so under StrictMode's mount-effect double-invoke the first
@@ -81,27 +84,27 @@ export function GameView() {
   }, [socket.rematchStarted, navigate]);
 
   const state = socket.state;
+  const nav = useHistoryNav(state?.moveHistory.length ?? 0);
   const myColor = seat?.color ?? null;
   const isPlayer = myColor !== null;
-  const bottomColor = myColor ?? "white";
+  const baseColor = myColor ?? "white";
+  const bottomColor = flipped ? (baseColor === "white" ? "black" : "white") : baseColor;
   const topColor = bottomColor === "white" ? "black" : "white";
 
   function bar(color: "white" | "black") {
-    const sideLabel = color === "white" ? "White" : "Black";
-    const name = !isPlayer ? sideLabel : color === myColor ? "You" : "Opponent";
+    const side = color === "white" ? "White" : "Black";
+    const name = !isPlayer ? side : color === myColor ? "You" : "Opponent";
     const connected = state ? (color === "white" ? state.whiteConnected : state.blackConnected) : false;
-    const detail = isPlayer ? `${sideLabel}${connected ? "" : " · not connected"}` : connected ? "" : "not connected";
     const ticking = state?.status === "IN_PROGRESS" && state.turn === color;
     return (
       <PlayerBar
         color={color}
         name={name}
-        detail={detail || undefined}
+        detail={isPlayer ? side : connected ? "connected" : "not connected"}
+        online={connected}
         active={ticking}
-        trailing={
-          state && (
-            <ClockDisplay millis={color === "white" ? state.whiteMillis : state.blackMillis} isTicking={ticking} />
-          )
+        clock={
+          state && <ClockDisplay millis={color === "white" ? state.whiteMillis : state.blackMillis} isTicking={ticking} />
         }
       />
     );
@@ -111,34 +114,42 @@ export function GameView() {
 
   if (resolving || joinError || !state) {
     return (
-      <BoardLayout
+      <ChessPage
+        title="Play a friend"
+        subtitle="Joining the game"
+        left={
+          <SideCard>
+            <div className="side-section">
+              {joinError ? <p className="error-text">{joinError}</p> : <p className="side-status">Connecting...</p>}
+            </div>
+          </SideCard>
+        }
         top={bar(topColor)}
         board={null}
         bottom={bar(bottomColor)}
-        panel={
-          <div className="panel-section">
-            {joinError ? <p className="error-text">{joinError}</p> : <p className="panel-status">Connecting...</p>}
-          </div>
-        }
+        right={<NotationPanel moves={[]} nav={nav} onFlip={() => setFlipped((f) => !f)} />}
       />
     );
   }
 
   const isMyTurn = isPlayer && state.turn === myColor;
-  const gameOver = state.status !== "WAITING_FOR_OPPONENT" && state.status !== "IN_PROGRESS";
-  const opponentOfferedDraw = isPlayer && state.drawOfferBy !== null && state.drawOfferBy !== myColor;
+  const inProgress = state.status === "IN_PROGRESS";
+  const waiting = state.status === "WAITING_FOR_OPPONENT";
+  const gameOver = !waiting && !inProgress;
+  const opponentOfferedDraw = isPlayer && inProgress && state.drawOfferBy !== null && state.drawOfferBy !== myColor;
+  const timeControl = `${state.initialSeconds / 60}+${state.incrementSeconds}`;
 
-  let statusLine: string;
-  if (state.status === "WAITING_FOR_OPPONENT") statusLine = "Waiting for an opponent";
-  else if (gameOver) statusLine = STATUS_LABEL[state.status] ?? state.status;
-  else if (isPlayer) statusLine = isMyTurn ? "Your move" : "Opponent's move";
-  else statusLine = `${state.turn === "white" ? "White" : "Black"} to move`;
+  let title: string;
+  if (waiting) title = "Waiting for an opponent";
+  else if (gameOver) title = STATUS_LABEL[state.status] ?? state.status;
+  else if (isPlayer) title = isMyTurn ? "Your move" : "Opponent's move";
+  else title = `${state.turn === "white" ? "White" : "Black"} to move`;
 
-  let resultLine: string | null = null;
+  let result: string | null = null;
   if (gameOver) {
-    if (!state.winner) resultLine = "The game is drawn.";
-    else if (isPlayer) resultLine = state.winner === myColor ? "You won." : "You lost.";
-    else resultLine = `${state.winner === "white" ? "White" : "Black"} wins.`;
+    if (!state.winner) result = "The game is drawn.";
+    else if (isPlayer) result = state.winner === myColor ? "You won." : "You lost.";
+    else result = `${state.winner === "white" ? "White" : "Black"} wins.`;
   }
 
   async function copyLink() {
@@ -153,52 +164,79 @@ export function GameView() {
     setConfirming(null);
   }
 
+  const actions = isPlayer && inProgress && (
+    <>
+      <button
+        type="button"
+        className="icon-button"
+        aria-label={state.drawOfferBy === myColor ? "Draw offered" : "Offer a draw"}
+        title={state.drawOfferBy === myColor ? "Draw offered" : "Offer a draw"}
+        disabled={state.drawOfferBy !== null}
+        onClick={() => setConfirming("OFFER_DRAW")}
+      >
+        ½
+      </button>
+      <button
+        type="button"
+        className="icon-button icon-button-danger"
+        aria-label="Resign"
+        title="Resign"
+        onClick={() => setConfirming("RESIGN")}
+      >
+        <FlagIcon />
+      </button>
+    </>
+  );
+
   return (
     <>
-      <BoardLayout
-        top={bar(topColor)}
-        board={
-          <Chessboard
-            fen={state.fen}
-            legalMoves={isMyTurn ? state.legalMoves : []}
-            orientation={bottomColor === "black" ? "b" : "w"}
-            onMove={(move) => socket.sendMove(move.from, move.to, move.promotion)}
-            animateEntry={state.moveHistory.length === 0}
-          />
-        }
-        bottom={bar(bottomColor)}
-        panel={
+      <ChessPage
+        title={title}
+        subtitle={`Chess960 position #${state.startingNumber} · ${timeControl}`}
+        left={
           <>
-            <div className="panel-section">
-              <p className="panel-heading">Chess960 · Position #{state.startingNumber}</p>
-              <p className="panel-status">{statusLine}</p>
-              {resultLine && <p className="panel-note">{resultLine}</p>}
-              {socket.error && <p className="error-text">{socket.error}</p>}
+            <IdentityCard
+              initial={isPlayer ? "Y" : "S"}
+              tone={isPlayer ? (myColor ?? "white") : "accent"}
+              title={isPlayer ? "You" : "Spectator"}
+              detail={isPlayer ? `Playing ${myColor === "white" ? "White" : "Black"}` : "Watching this game"}
+            />
+            <SideCard>
+              <div className="side-section">
+                <span className="side-label">Game</span>
+                <p className="side-status">{title}</p>
+                {result && <p className="side-text muted">{result}</p>}
+                {state.drawOfferBy === myColor && inProgress && (
+                  <p className="side-text muted">Draw offered - waiting for a reply.</p>
+                )}
+                {socket.error && <p className="error-text">{socket.error}</p>}
+              </div>
 
-              {state.status === "WAITING_FOR_OPPONENT" && (
-                <div className="invite">
-                  <p className="panel-note">Send this link to a friend. The game starts when they open it.</p>
-                  <div className="share-row">
-                    <input
-                      readOnly
-                      className="text-input"
-                      value={window.location.href}
-                      onFocus={(e) => e.currentTarget.select()}
-                      aria-label="Invite link"
-                    />
-                    <button className="secondary-button" onClick={copyLink}>
-                      {copied ? "Copied" : "Copy"}
-                    </button>
-                  </div>
+              {waiting && (
+                <div className="side-section">
+                  <span className="side-label">Invite link</span>
+                  <input
+                    readOnly
+                    className="text-input"
+                    value={window.location.href}
+                    onFocus={(e) => e.currentTarget.select()}
+                    aria-label="Invite link"
+                  />
+                  <p className="side-text muted" style={{ marginTop: "var(--space-2)" }}>
+                    The game starts when your friend opens it.
+                  </p>
                 </div>
               )}
 
-              {opponentOfferedDraw && state.status === "IN_PROGRESS" && (
-                <div className="draw-offer">
-                  <p className="panel-note">Your opponent offers a draw.</p>
+              {opponentOfferedDraw && (
+                <div className="side-section">
+                  <span className="side-label">Draw offer</span>
+                  <p className="side-text" style={{ marginBottom: "var(--space-3)" }}>
+                    Your opponent offers a draw.
+                  </p>
                   <div className="button-row">
                     <button className="primary-button" onClick={() => socket.respondDraw(true)}>
-                      Accept draw
+                      Accept
                     </button>
                     <button className="secondary-button" onClick={() => socket.respondDraw(false)}>
                       Decline
@@ -206,53 +244,50 @@ export function GameView() {
                   </div>
                 </div>
               )}
-            </div>
 
-            <div className="panel-section panel-section-grow">
-              <p className="panel-heading">Moves</p>
-              <MoveList moves={state.moveHistory} />
-            </div>
-
-            {isPlayer && state.status === "IN_PROGRESS" && (
-              <div className="panel-section">
-                <div className="button-row">
-                  <button
-                    className="secondary-button"
-                    disabled={state.drawOfferBy !== null}
-                    onClick={() => setConfirming("OFFER_DRAW")}
-                  >
-                    {state.drawOfferBy === myColor ? "Draw offered" : "Offer draw"}
-                  </button>
-                  <button className="secondary-button" onClick={() => setConfirming("RESIGN")}>
-                    Resign
-                  </button>
-                </div>
+              <div className="side-section">
+                <span className="side-label">Settings</span>
+                <p className="side-text">Position #{state.startingNumber}</p>
+                <p className="side-text">Time control {timeControl}</p>
               </div>
-            )}
+            </SideCard>
 
+            {waiting && (
+              <button className="big-button" onClick={copyLink}>
+                {copied ? "Link copied" : "Copy invite link"}
+              </button>
+            )}
+            {gameOver && isPlayer && (
+              <button className="big-button" disabled={socket.rematchOfferedBy === myColor} onClick={socket.requestRematch}>
+                {socket.rematchOfferedBy === myColor
+                  ? "Rematch offered"
+                  : socket.rematchOfferedBy
+                    ? "Accept rematch"
+                    : "Rematch"}
+              </button>
+            )}
             {gameOver && (
-              <div className="panel-section">
-                <div className="button-row">
-                  {isPlayer && (
-                    <button
-                      className="primary-button"
-                      disabled={socket.rematchOfferedBy === myColor}
-                      onClick={socket.requestRematch}
-                    >
-                      {socket.rematchOfferedBy === myColor
-                        ? "Rematch offered"
-                        : socket.rematchOfferedBy
-                          ? "Accept rematch"
-                          : "Rematch"}
-                    </button>
-                  )}
-                  <button className="secondary-button" onClick={() => navigate("/play")}>
-                    New game
-                  </button>
-                </div>
-              </div>
+              <button className="big-button big-button-secondary" onClick={() => navigate("/play")}>
+                New game
+              </button>
             )}
+            <PreferenceToggles />
           </>
+        }
+        top={bar(topColor)}
+        board={
+          <Chessboard
+            fen={state.fenHistory[nav.ply] ?? state.fen}
+            legalMoves={isMyTurn && nav.isLatest ? state.legalMoves : []}
+            orientation={bottomColor === "black" ? "b" : "w"}
+            onMove={(move) => socket.sendMove(move.from, move.to, move.promotion)}
+            animateEntry={state.moveHistory.length === 0}
+            disabled={!nav.isLatest}
+          />
+        }
+        bottom={bar(bottomColor)}
+        right={
+          <NotationPanel moves={state.moveHistory} nav={nav} onFlip={() => setFlipped((f) => !f)} actions={actions} />
         }
       />
 

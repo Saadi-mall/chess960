@@ -33,8 +33,6 @@
   --board-danger: rgba(226, 89, 74, 0.55);
   --board-hint: rgba(28, 18, 8, 0.32);
 
-  --panel-width: clamp(340px, 28vw, 440px);
-
   --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-heading: "Source Serif 4", Georgia, serif;
 

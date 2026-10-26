@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePreferences } from "../preferencesContext";
 import { squaresFromFen } from "./fen";
 import { fileOf, rankOf, squareAt, type LegalMove } from "./types";
 import "./Chessboard.css";
@@ -68,7 +69,8 @@ export function Chessboard({
   );
   const svgRef = useRef<SVGSVGElement>(null);
 
-  const entryOffsets = useBackRankEntryAnimation(fen, animateEntry);
+  const { prefs } = usePreferences();
+  const entryOffsets = useBackRankEntryAnimation(fen, animateEntry && prefs.animations);
 
   const destinations = useMemo(() => {
     const from = drag?.from ?? selected;
@@ -210,7 +212,7 @@ export function Chessboard({
             </g>
           );
         })}
-        {renderMoveHints(orientation, destinations, squares)}
+        {prefs.showLegalMoves && renderMoveHints(orientation, destinations, squares)}
         {drag && draggedXY && (
           <g
             className="piece piece-dragging"

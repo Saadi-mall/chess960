@@ -23,6 +23,8 @@ public final class GameMessages {
                 "STATE",
                 Fen.toShredderFen(game.position()),
                 game.startingNumber(),
+                game.timeControl().initialSeconds(),
+                game.timeControl().incrementSeconds(),
                 legalMoves,
                 colorName(game.position().sideToMove()),
                 game.status().name(),
@@ -31,6 +33,7 @@ public final class GameMessages {
                 game.remainingMillis(Color.WHITE),
                 game.remainingMillis(Color.BLACK),
                 game.moveHistory(),
+                game.fenHistory(),
                 game.isConnected(Color.WHITE),
                 game.isConnected(Color.BLACK));
     }

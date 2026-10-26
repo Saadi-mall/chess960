@@ -36,6 +36,18 @@ class GameTest {
     }
 
     @Test
+    void recordsSanAndThePositionAfterEveryMove() {
+        Game game = newStartedGame();
+        move(game, Color.WHITE, "g1", "f3");
+        move(game, Color.BLACK, "e7", "e5");
+
+        assertEquals(java.util.List.of("Nf3", "e5"), game.moveHistory());
+        assertEquals(3, game.fenHistory().size());
+        assertEquals("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w HAha - 0 1", game.fenHistory().get(0));
+        assertEquals(Fen.toShredderFen(game.position()), game.fenHistory().get(2));
+    }
+
+    @Test
     void aThirdJoinIsRejected() {
         Game game = newStartedGame();
         assertThrows(GameException.class, game::join);

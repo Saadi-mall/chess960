@@ -248,8 +248,9 @@ decorative:
   the backend restarts. A `games` / `moves` table, written once at game end (not every
   move - no need for that write volume), would let a "my games" or "review a past game"
   feature exist.
-- **A proper opening/move explorer in Analyze**, letting you step back and forward through
-  a line instead of only ever adding to the end of it.
+- **Branching lines in Analyze.** You can now step back through the moves played (and Undo
+  the last one), but playing a different move from an earlier position isn't supported -
+  moves only go on the end of the line. A small tree of variations would fix that.
 - **Multi-PV Stockfish output** (show the top 2-3 moves and their evaluations, not just
   the best one) - `go` already supports `MultiPV`, it's a small change to `StockfishEngine`
   and a slightly richer `EngineEvaluation`.
@@ -257,8 +258,8 @@ decorative:
   at full strength; `UCI_LimitStrength` / `UCI_Elo` would let the Learn tab's quizzes scale
   to a beginner.
 - **More frontend automated tests.** There's now a small Vitest + React Testing Library
-  suite (`LearnTab.test.tsx`), added once the Learn tab had an interaction bug worth
-  regression-testing, but most of the UI is still only verified manually in-browser.
+  suite (`LearnTab.test.tsx`, `useHistoryNav.test.ts`), added once the Learn tab had an
+  interaction bug worth regression-testing, but most of the UI is still only verified manually in-browser.
   Given more time: component tests for the board's own move/drag/promotion logic (the
   highest-value remaining target, since it's the piece every tab depends on) and a couple
   of Playwright end-to-end flows (create a game, join it, play a few moves).

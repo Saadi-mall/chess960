@@ -4,6 +4,8 @@ export interface GameStateMessage {
   type: "STATE";
   fen: string;
   startingNumber: number;
+  initialSeconds: number;
+  incrementSeconds: number;
   legalMoves: LegalMove[];
   turn: "white" | "black";
   status: string;
@@ -11,7 +13,10 @@ export interface GameStateMessage {
   drawOfferBy: "white" | "black" | null;
   whiteMillis: number;
   blackMillis: number;
+  /** Every move so far, in SAN. */
   moveHistory: string[];
+  /** The starting FEN, then the FEN after each move - one longer than moveHistory. */
+  fenHistory: string[];
   whiteConnected: boolean;
   blackConnected: boolean;
 }
