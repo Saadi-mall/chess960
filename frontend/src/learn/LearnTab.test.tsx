@@ -1,143 +1,126 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as analyzeApi from "../analyze/api";
+import * as lessonApi from "./api";
 import { LearnTab } from "./LearnTab";
+import type { Lesson } from "./types";
 
-vi.mock("../analyze/api");
+vi.mock("./api");
 
 const FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w HAha - 0 1";
+const move = (from: string, to: string, san: string) => ({ from, to, promotion: null, san, arrowTo: to });
 
-const OVERVIEW = {
-  positionNumber: 518,
-  white: {
-    undefendedPawnSquares: [],
-    longDiagonalBishopSquares: [],
-    castlingDistance: 0,
-    weakestSquare: "c1",
-    weakestSquareDefenders: 0,
+const LESSON: Lesson = {
+  date: "2026-10-26",
+  number: 518,
+  fen: FEN,
+  evaluation: "+0.25",
+  features: [
+    { title: "The verdict", text: "Stockfish rates the starting position +0.25.", arrows: [], squares: [] },
+    { title: "Kings and castling", text: "White's king starts on e1.", arrows: [{ from: "e1", to: "g1", color: "feature" }], squares: ["e1"] },
+  ],
+  weakestPawn: { question: "Which of White's pawns is the weakest?", answers: ["f2"], explanation: "f2 is White's weakest pawn." },
+  whiteMoves: {
+    fen: FEN,
+    sideToMove: "white",
+    prompt: "Find White's three best first moves, in any order.",
+    bestMoves: [
+      { ...move("e2", "e4", "e4"), score: "+0.25" },
+      { ...move("d2", "d4", "d4"), score: "+0.22" },
+      { ...move("g1", "f3", "Nf3"), score: "+0.20" },
+    ],
+    legalMoves: [move("e2", "e4", "e4"), move("d2", "d4", "d4"), move("g1", "f3", "Nf3"), move("c2", "c4", "c4"), move("a2", "a3", "a3")],
   },
-  black: {
-    undefendedPawnSquares: [],
-    longDiagonalBishopSquares: [],
-    castlingDistance: 0,
-    weakestSquare: "c8",
-    weakestSquareDefenders: 0,
+  blackMoves: {
+    fen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b HAha - 0 1",
+    sideToMove: "black",
+    prompt: "After 1. e4, find Black's three best replies, in any order.",
+    bestMoves: [],
+    legalMoves: [],
   },
+  mainLine: "1. e4 e5",
+  mainLineMoves: ["e4", "e5"],
+  mainLineFens: [FEN, FEN, FEN],
+  plans: [],
 };
 
-const LEGAL_MOVES = [
-  { from: "e2", to: "e4" },
-  { from: "d2", to: "d4" },
-];
+const square = (sq: string) => document.querySelector(`rect[data-square="${sq}"]`)!;
+const highlighted = (sq: string, cls: string) =>
+  Array.from(document.querySelectorAll(`[data-square="${sq}"]`)).some((el) => el.classList.contains(cls));
 
-function squareElements(square: string): Element[] {
-  return Array.from(document.querySelectorAll(`[data-square="${square}"]`));
-}
-
-function isHighlighted(square: string, className: string): boolean {
-  return squareElements(square).some((el) => el.classList.contains(className));
+async function startQuestions() {
+  render(
+    <MemoryRouter>
+      <LearnTab />
+    </MemoryRouter>,
+  );
+  fireEvent.click(await screen.findByRole("button", { name: "Start the questions" }));
 }
 
 describe("LearnTab", () => {
   beforeEach(() => {
-    vi.mocked(analyzeApi.fetchDailyPosition).mockResolvedValue({
-      date: "2026-10-25",
-      number: 518,
-    });
-    vi.mocked(analyzeApi.fetchStartingPosition).mockResolvedValue({
-      fen: FEN,
-      legalMoves: LEGAL_MOVES,
-      turn: "white",
-      status: "IN_PROGRESS",
-      winner: null,
-      lastMoveSan: null,
-      overview: OVERVIEW,
-      evaluation: { bestMoveUci: "d2d4", bestMoveSan: "d4", scoreCentipawns: 20, mateInMoves: null, depth: 10 },
-    });
-    vi.mocked(analyzeApi.playMove).mockResolvedValue({
-      fen: "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b HAha - 0 1",
-      legalMoves: [],
-      turn: "black",
-      status: "IN_PROGRESS",
-      winner: null,
-      lastMoveSan: "d4",
-      overview: OVERVIEW,
-      evaluation: { bestMoveUci: null, bestMoveSan: null, scoreCentipawns: -15, mateInMoves: null, depth: 10 },
-    });
+    vi.mocked(lessonApi.fetchLesson).mockResolvedValue(LESSON);
   });
 
-  it("highlights a clicked square right away, lets you change it before submitting, then reveals green/red", async () => {
+  it("explains the features first, with the selected feature's arrows on the board", async () => {
     render(
       <MemoryRouter>
         <LearnTab />
       </MemoryRouter>,
     );
+    await screen.findByText("Kings and castling");
+    expect(document.querySelector('[data-arrow="e1-g1"]')).not.toBeNull();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Start" }));
-    await screen.findByText(/Click the White piece with the fewest defenders/);
+    fireEvent.click(screen.getByText("The verdict"));
+    expect(document.querySelector('[data-arrow="e1-g1"]')).toBeNull();
+  });
 
+  it("only accepts a pawn, lets you change it, then grades it", async () => {
+    await startQuestions();
     const submit = screen.getByRole("button", { name: "Submit" });
     expect(submit).toBeDisabled();
 
-    // Click a square - it should highlight immediately, with nothing graded yet.
-    fireEvent.click(squareElements("a1")[0]);
-    expect(isHighlighted("a1", "square-selected")).toBe(true);
-    expect(submit).toBeEnabled();
-    expect(screen.queryByText(/weakest square is/)).not.toBeInTheDocument();
+    fireEvent.click(square("e1"));
+    expect(screen.getByText("Pick one of White's pawns.")).toBeInTheDocument();
+    expect(submit).toBeDisabled();
 
-    // Change the choice before submitting - the old highlight should move.
-    fireEvent.click(squareElements("f1")[0]);
-    expect(isHighlighted("a1", "square-selected")).toBe(false);
-    expect(isHighlighted("f1", "square-selected")).toBe(true);
+    fireEvent.click(square("a2"));
+    expect(highlighted("a2", "square-marker-selected")).toBe(true);
+    fireEvent.click(square("h2"));
+    expect(highlighted("a2", "square-marker-selected")).toBe(false);
+    expect(highlighted("h2", "square-marker-selected")).toBe(true);
 
-    // Submit the (still wrong) answer: f1 in red, the actual answer c1 in green.
     fireEvent.click(submit);
-    await screen.findByText(/the weakest square is c1/);
-    expect(isHighlighted("c1", "square-marker-correct")).toBe(true);
-    expect(isHighlighted("f1", "square-marker-incorrect")).toBe(true);
-
-    // The board is frozen once answered - clicking elsewhere changes nothing.
-    fireEvent.click(squareElements("g1")[0]);
-    expect(isHighlighted("c1", "square-marker-correct")).toBe(true);
-    expect(isHighlighted("f1", "square-marker-incorrect")).toBe(true);
-
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByText(/Not quite - you picked h2/)).toBeInTheDocument();
+    expect(highlighted("f2", "square-marker-correct")).toBe(true);
+    expect(highlighted("h2", "square-marker-incorrect")).toBe(true);
   });
 
-  it("stages a proposed move without applying it, then grades it on submit", async () => {
-    render(
-      <MemoryRouter>
-        <LearnTab />
-      </MemoryRouter>,
-    );
-
-    fireEvent.click(await screen.findByRole("button", { name: "Start" }));
-    await screen.findByText(/Click the White piece with the fewest defenders/);
-    fireEvent.click(squareElements("c1")[0]);
+  it("collects three best-move guesses in any order and grades each one", async () => {
+    await startQuestions();
+    fireEvent.click(square("f2"));
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
-    await screen.findByText(/Correct!/);
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
 
-    await screen.findByText(/Find White's best first move/);
-    const submit = screen.getByRole("button", { name: "Submit" });
-    expect(submit).toBeDisabled();
+    const play = (from: string, to: string) => {
+      fireEvent.click(square(from));
+      fireEvent.click(square(to));
+    };
+    play("g1", "f3");
+    play("c2", "c4");
+    play("e2", "e4");
+    expect(screen.getByRole("button", { name: "Submit 3/3" })).toBeEnabled();
+    expect(document.querySelector('[data-arrow="g1-f3"]')!.classList.contains("arrow-guess")).toBe(true);
 
-    // Propose e2-e4: both squares highlight, but the move isn't applied yet.
-    fireEvent.click(squareElements("e2")[0]);
-    fireEvent.click(squareElements("e4")[0]);
-    expect(isHighlighted("e2", "square-marker-selected")).toBe(true);
-    expect(isHighlighted("e4", "square-marker-selected")).toBe(true);
-    expect(analyzeApi.playMove).not.toHaveBeenCalled();
-    expect(submit).toBeEnabled();
+    // Change one guess: drop c4 (not a top move), play a3 (also not one) instead.
+    fireEvent.click(screen.getByRole("button", { name: "Remove c4" }));
+    expect(screen.getByRole("button", { name: "Submit 2/3" })).toBeDisabled();
+    play("a2", "a3");
+    fireEvent.click(screen.getByRole("button", { name: "Submit 3/3" }));
 
-    // Submit grades it against Stockfish's line (d2-d4) and reveals both.
-    fireEvent.click(submit);
-    await waitFor(() => expect(analyzeApi.playMove).toHaveBeenCalledWith(FEN, "d2", "d4", undefined));
-    await screen.findByText(/Stockfish's top choice was d4\./);
-    expect(isHighlighted("d2", "square-marker-correct")).toBe(true);
-    expect(isHighlighted("d4", "square-marker-correct")).toBe(true);
-    expect(isHighlighted("e2", "square-marker-incorrect")).toBe(true);
-    expect(isHighlighted("e4", "square-marker-incorrect")).toBe(true);
+    expect(screen.getByText("You found 2 of Stockfish's top 3.")).toBeInTheDocument();
+    expect(screen.getByText(/Not in the top 3: a3/)).toBeInTheDocument();
+    expect(document.querySelector('[data-arrow="d2-d4"]')!.classList.contains("arrow-good")).toBe(true);
+    expect(document.querySelector('[data-arrow="a2-a3"]')!.classList.contains("arrow-bad")).toBe(true);
   });
 });

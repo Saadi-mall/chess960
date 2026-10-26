@@ -120,3 +120,30 @@
 .promotion-option:hover {
   background: var(--color-accent-muted);
 }
+
+.arrows {
+  pointer-events: none;
+}
+
+.arrow-line {
+  stroke-width: 15;
+  stroke-linecap: round;
+  fill: none;
+}
+
+.arrow-head {
+  stroke: none;
+}
+
+.arrow-line.arrow-feature { stroke: var(--board-arrow-feature); }
+.arrow-head.arrow-feature { fill: var(--board-arrow-feature); }
+.arrow-line.arrow-white { stroke: var(--board-arrow-white); }
+.arrow-head.arrow-white { fill: var(--board-arrow-white); }
+.arrow-line.arrow-black { stroke: var(--board-arrow-black); }
+.arrow-head.arrow-black { fill: var(--board-arrow-black); }
+.arrow-line.arrow-good { stroke: var(--board-arrow-good); }
+.arrow-head.arrow-good { fill: var(--board-arrow-good); }
+.arrow-line.arrow-bad { stroke: var(--board-arrow-bad); }
+.arrow-head.arrow-bad { fill: var(--board-arrow-bad); }
+.arrow-line.arrow-guess { stroke: var(--board-arrow-guess); }
+.arrow-head.arrow-guess { fill: var(--board-arrow-guess); }

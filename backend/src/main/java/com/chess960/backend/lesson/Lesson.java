@@ -9,6 +9,8 @@ import java.util.List;
  * @param evaluation Stockfish's score for the start, from White's side, e.g. "+0.31"
  * @param features the key features of the position, each with arrows/squares to show
  * @param mainLine Stockfish's main line in numbered SAN, e.g. "1. Nf3 Nf6 2. d4"
+ * @param mainLineMoves the same line as a list of SAN moves
+ * @param mainLineFens the starting FEN, then the FEN after each main-line move
  * @param plans what each side does in that main line, drawn as arrows
  */
 public record Lesson(
@@ -21,6 +23,8 @@ public record Lesson(
         MoveQuiz whiteMoves,
         MoveQuiz blackMoves,
         String mainLine,
+        List<String> mainLineMoves,
+        List<String> mainLineFens,
         List<Plan> plans) {
 
     /** @param color "feature", "white" or "black" - which colour the board draws it in */
@@ -39,8 +43,9 @@ public record Lesson(
      */
     public record CandidateMove(String san, String from, String to, String promotion, String arrowTo, String score) {}
 
-    /** A legal move with its SAN, so the page can name a guess without knowing the rules. */
-    public record LegalMoveSan(String from, String to, String promotion, String san) {}
+    /** A legal move with its SAN (and where the piece lands, for drawing an arrow), so the
+     * page can name and draw a guess without knowing the rules. */
+    public record LegalMoveSan(String from, String to, String promotion, String san, String arrowTo) {}
 
     public record MoveQuiz(
             String fen, String sideToMove, String prompt, List<CandidateMove> bestMoves, List<LegalMoveSan> legalMoves) {}

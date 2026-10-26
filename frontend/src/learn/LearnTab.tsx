@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { fetchDailyPosition, fetchStartingPosition, playMove } from "../analyze/api";
-import { OverviewCard } from "../analyze/OverviewCard";
-import type { Evaluation, Overview } from "../analyze/types";
-import { Chessboard, type SquareMarker } from "../board/Chessboard";
+import { Chessboard, type BoardArrow, type SquareMarker } from "../board/Chessboard";
+import { squaresFromFen } from "../board/fen";
 import type { LegalMove } from "../board/types";
 import { ChessPage, IdentityCard, SideCard } from "../layout/ChessPage";
 import { NotationPanel } from "../layout/NotationPanel";
@@ -12,177 +10,123 @@ import { PreferenceToggles } from "../layout/Toggles";
 import { useHistoryNav } from "../layout/useHistoryNav";
 import { createGame } from "../play/api";
 import { setSeat } from "../play/storage";
-import { getStreak, recordCompletionToday } from "./streak";
-import { parseUci } from "./uci";
-import "../analyze/Analyze.css";
+import { SegmentedControl } from "../SegmentedControl";
+import { fetchLesson } from "./api";
+import { useLessonProgress } from "./progress";
+import type { Lesson, LegalMoveSan, MoveQuiz } from "./types";
 import "./Learn.css";
 
-type Step = "LOADING" | "OVERVIEW" | "WEAKEST_SQUARE" | "WHITE_MOVE" | "BLACK_MOVE" | "DONE";
+type Step = "FEATURES" | "WEAKEST_PAWN" | "WHITE_MOVES" | "BLACK_MOVES" | "PLANS";
 
 const STEPS: Array<{ step: Step; label: string }> = [
-  { step: "OVERVIEW", label: "Read the position" },
-  { step: "WEAKEST_SQUARE", label: "Find the weakest square" },
-  { step: "WHITE_MOVE", label: "Find White's best move" },
-  { step: "BLACK_MOVE", label: "Find Black's best reply" },
+  { step: "FEATURES", label: "Key features" },
+  { step: "WEAKEST_PAWN", label: "Find the weakest pawn" },
+  { step: "WHITE_MOVES", label: "White's three best moves" },
+  { step: "BLACK_MOVES", label: "Black's three best replies" },
+  { step: "PLANS", label: "Plans for both sides" },
 ];
+
+const GUESSES = 3;
+
+function sameMove(a: { from: string; to: string; promotion: string | null }, b: typeof a) {
+  return a.from === b.from && a.to === b.to && (a.promotion ?? null) === (b.promotion ?? null);
+}
 
 export function LearnTab() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<Step>("LOADING");
-  const [dailyNumber, setDailyNumber] = useState<number | null>(null);
-  const [fen, setFen] = useState("");
-  const [legalMoves, setLegalMoves] = useState<LegalMove[]>([]);
-  const [overview, setOverview] = useState<Overview | null>(null);
-  const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
-  const [feedback, setFeedback] = useState<string | null>(null);
-
-  // The learner's pending answer for the current step, before they press Submit - a
-  // square for the weakest-square quiz, a move for the two "find the best move" steps.
-  // Picking again before submitting just overwrites these, which is how "change your
-  // choice" works: nothing is graded until a submit handler runs.
-  const [pickedSquare, setPickedSquare] = useState<string | null>(null);
-  const [proposedMove, setProposedMove] = useState<LegalMove | null>(null);
-  const [markers, setMarkers] = useState<SquareMarker[]>([]);
-  const [lastCorrect, setLastCorrect] = useState<boolean | null>(null);
-
-  const [answered, setAnswered] = useState(false);
-  const [checking, setChecking] = useState(false);
+  const progress = useLessonProgress();
+  const [lesson, setLesson] = useState<Lesson | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [streak, setStreak] = useState(getStreak());
-  const [creatingGame, setCreatingGame] = useState(false);
-  // The Stockfish line the lesson walks through, for the notation column.
-  const [line, setLine] = useState<string[]>([]);
-  const [lineFens, setLineFens] = useState<string[]>([]);
+  const [step, setStep] = useState<Step>("FEATURES");
+  const [featureIndex, setFeatureIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
-  const nav = useHistoryNav(line.length);
+  const [creatingGame, setCreatingGame] = useState(false);
+
+  // Weakest-pawn step: the picked square, staged until Submit.
+  const [pickedSquare, setPickedSquare] = useState<string | null>(null);
+  const [pickHint, setPickHint] = useState<string | null>(null);
+  // Best-move steps: up to three guesses, in any order, staged until Submit.
+  const [guesses, setGuesses] = useState<LegalMoveSan[]>([]);
+  const [answered, setAnswered] = useState(false);
+
+  const [weakestCorrect, setWeakestCorrect] = useState(false);
+  const [whiteFound, setWhiteFound] = useState(0);
+  const [blackFound, setBlackFound] = useState(0);
+  const [planFilter, setPlanFilter] = useState<"both" | "white" | "black">("both");
+
+  // Steps through Stockfish's main line in the last step; before that the move list is empty.
+  const nav = useHistoryNav(lesson?.mainLineMoves.length ?? 0);
+  const idleNav = useHistoryNav(0);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const daily = await fetchDailyPosition();
-        const response = await fetchStartingPosition(daily.number);
-        setDailyNumber(daily.number);
-        setFen(response.fen);
-        setLineFens([response.fen]);
-        setLegalMoves(response.legalMoves);
-        setOverview(response.overview);
-        setEvaluation(response.evaluation);
-        setStep("OVERVIEW");
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Could not load today's lesson");
-      }
-    })();
+    fetchLesson().then(
+      (l) => {
+        setLesson(l);
+        // Start on the first feature that has something to show on the board.
+        const firstVisual = l.features.findIndex((f) => f.arrows.length > 0 || f.squares.length > 0);
+        setFeatureIndex(Math.max(0, firstVisual));
+      },
+      (e) => setError(e instanceof Error ? e.message : "Could not load today's lesson"),
+    );
   }, []);
 
+  const quiz: MoveQuiz | null =
+    lesson && step === "WHITE_MOVES" ? lesson.whiteMoves : lesson && step === "BLACK_MOVES" ? lesson.blackMoves : null;
+
+  function advance() {
+    setAnswered(false);
+    setPickedSquare(null);
+    setPickHint(null);
+    setGuesses([]);
+    const index = STEPS.findIndex((s) => s.step === step);
+    const next = STEPS[index + 1]?.step;
+    if (!next) return;
+    if (next === "PLANS" && lesson) {
+      nav.first();
+      progress.record({ date: lesson.date, weakestPawnCorrect: weakestCorrect, whiteFound, blackFound });
+    }
+    setStep(next);
+  }
+
   function handlePickSquare(square: string) {
-    if (answered) return;
+    if (!lesson || answered) return;
+    if (squaresFromFen(lesson.fen)[square] !== "P") {
+      setPickedSquare(null);
+      setPickHint("Pick one of White's pawns.");
+      return;
+    }
+    setPickHint(null);
     setPickedSquare(square);
   }
 
-  function handleProposeMove(move: LegalMove) {
-    if (answered) return;
-    setProposedMove(move);
-    setMarkers([
-      { square: move.from, kind: "selected" },
-      { square: move.to, kind: "selected" },
-    ]);
-  }
-
-  function handleSubmitWeakestSquare() {
-    if (!overview || pickedSquare === null) return;
-    const correct = overview.white.weakestSquare;
-    const defenders = overview.white.weakestSquareDefenders;
-    if (correct === null) {
-      setFeedback("Every White piece here already has a defender - no weak square to find.");
-      setMarkers([]);
-      setLastCorrect(null);
-    } else if (pickedSquare === correct) {
-      setFeedback(`Correct! ${correct} has only ${defenders} defender${defenders === 1 ? "" : "s"}.`);
-      setMarkers([{ square: correct, kind: "correct" }]);
-      setLastCorrect(true);
-    } else {
-      setFeedback(
-        `Not quite - the weakest square is ${correct}, with only ${defenders} defender${defenders === 1 ? "" : "s"}.`,
-      );
-      setMarkers([
-        { square: correct, kind: "correct" },
-        { square: pickedSquare, kind: "incorrect" },
-      ]);
-      setLastCorrect(false);
-    }
+  function submitWeakestPawn() {
+    if (!lesson || !pickedSquare) return;
+    setWeakestCorrect(lesson.weakestPawn.answers.includes(pickedSquare));
     setAnswered(true);
   }
 
-  async function handleSubmitMove(side: "white" | "black") {
-    if (!evaluation?.bestMoveUci || !proposedMove) return;
-    const best = parseUci(evaluation.bestMoveUci);
-    const bestSan = evaluation.bestMoveSan ?? `${best.from}-${best.to}`;
-    const isCorrect =
-      proposedMove.from === best.from &&
-      proposedMove.to === best.to &&
-      (proposedMove.promotion ?? undefined) === best.promotion;
-
-    setChecking(true);
-    try {
-      // Advance along Stockfish's line regardless of the guess, so the next step's
-      // position is always the well-analyzed one.
-      const response = await playMove(fen, best.from, best.to, best.promotion);
-      setFen(response.fen);
-      setLine((l) => [...l, response.lastMoveSan ?? bestSan]);
-      setLineFens((f) => [...f, response.fen]);
-      setLegalMoves(response.legalMoves);
-      setEvaluation(response.evaluation);
-      setFeedback(
-        isCorrect
-          ? `Correct! ${bestSan} is ${side === "white" ? "White" : "Black"}'s best move here.`
-          : `Stockfish's top choice was ${bestSan}. Your move is marked in red.`,
-      );
-      const bestSquares: SquareMarker[] = [
-        { square: best.from, kind: "correct" },
-        { square: best.to, kind: "correct" },
-      ];
-      setMarkers(
-        isCorrect
-          ? bestSquares
-          : [
-              ...bestSquares,
-              { square: proposedMove.from, kind: "incorrect" },
-              { square: proposedMove.to, kind: "incorrect" },
-            ],
-      );
-      setLastCorrect(isCorrect);
-      setAnswered(true);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not check that move");
-    } finally {
-      setChecking(false);
-    }
+  function handleGuess(move: LegalMove) {
+    if (!quiz || answered) return;
+    const legal = quiz.legalMoves.find((m) => sameMove(m, { ...move, promotion: move.promotion ?? null }));
+    if (!legal) return;
+    setGuesses((g) => (g.length >= GUESSES || g.some((x) => sameMove(x, legal)) ? g : [...g, legal]));
   }
 
-  function advance() {
-    setFeedback(null);
-    setAnswered(false);
-    setPickedSquare(null);
-    setProposedMove(null);
-    setMarkers([]);
-    setLastCorrect(null);
-    if (step === "OVERVIEW") setStep("WEAKEST_SQUARE");
-    else if (step === "WEAKEST_SQUARE") setStep("WHITE_MOVE");
-    else if (step === "WHITE_MOVE") setStep("BLACK_MOVE");
-    else if (step === "BLACK_MOVE") {
-      setStreak(recordCompletionToday());
-      setStep("DONE");
-    }
+  function submitGuesses() {
+    if (!quiz) return;
+    const found = guesses.filter((g) => quiz.bestMoves.some((b) => sameMove(b, g))).length;
+    if (step === "WHITE_MOVES") setWhiteFound(found);
+    else setBlackFound(found);
+    setAnswered(true);
   }
 
   async function handlePlayWithFriend() {
-    if (dailyNumber === null) return;
+    if (!lesson) return;
     setCreatingGame(true);
-    setError(null);
     try {
       const response = await createGame({
         positionMode: "NUMBER",
-        number: dailyNumber,
+        number: lesson.number,
         initialSeconds: 300,
         incrementSeconds: 0,
       });
@@ -195,32 +139,38 @@ export function LearnTab() {
     }
   }
 
-  const blackToMove = step === "BLACK_MOVE";
-  const quizActive = step === "WHITE_MOVE" || step === "BLACK_MOVE";
-  const bar = (color: "white" | "black") => {
-    const toMove = quizActive && !answered && (color === "black") === blackToMove;
-    return (
-      <PlayerBar
-        color={color}
-        name={color === "white" ? "White" : "Black"}
-        detail={toMove ? "to move" : undefined}
-        active={toMove}
-      />
-    );
-  };
-  // Each quiz is seen from the side that's moving; the flip button turns it around.
-  const blackAtBottom = blackToMove !== flipped;
-  const orientation = blackAtBottom ? "b" : "w";
+  // ---------- Board ----------
 
+  const blackSide = step === "BLACK_MOVES";
+  const orientation = blackSide !== flipped ? "b" : "w";
   let board = null;
-  if (fen && !nav.isLatest) {
-    board = <Chessboard fen={lineFens[nav.ply] ?? fen} legalMoves={[]} orientation={orientation} disabled />;
-  } else if (fen) {
-    if (step === "WEAKEST_SQUARE") {
+  if (lesson) {
+    if (step === "FEATURES") {
+      const feature = lesson.features[featureIndex];
       board = (
         <Chessboard
           key={step}
-          fen={fen}
+          fen={lesson.fen}
+          legalMoves={[]}
+          orientation={orientation}
+          arrows={feature?.arrows ?? []}
+          markers={(feature?.squares ?? []).map((square) => ({ square, kind: "selected" as const }))}
+          animateEntry
+          disabled
+        />
+      );
+    } else if (step === "WEAKEST_PAWN") {
+      const markers: SquareMarker[] = [];
+      if (answered) {
+        lesson.weakestPawn.answers.forEach((square) => markers.push({ square, kind: "correct" }));
+        if (pickedSquare && !weakestCorrect) markers.push({ square: pickedSquare, kind: "incorrect" });
+      } else if (pickedSquare) {
+        markers.push({ square: pickedSquare, kind: "selected" });
+      }
+      board = (
+        <Chessboard
+          key={step}
+          fen={lesson.fen}
           legalMoves={[]}
           orientation={orientation}
           onSquareClick={handlePickSquare}
@@ -228,72 +178,222 @@ export function LearnTab() {
           disabled={answered}
         />
       );
-    } else if (quizActive) {
+    } else if (quiz) {
+      const arrows: BoardArrow[] = answered
+        ? [
+            ...quiz.bestMoves.map((b) => ({ from: b.from, to: b.arrowTo, color: "good" as const })),
+            ...guesses
+              .filter((g) => !quiz.bestMoves.some((b) => sameMove(b, g)))
+              .map((g) => ({ from: g.from, to: g.arrowTo, color: "bad" as const })),
+          ]
+        : guesses.map((g) => ({ from: g.from, to: g.arrowTo, color: "guess" as const }));
       board = (
         <Chessboard
           key={step}
-          fen={fen}
-          legalMoves={checking ? [] : legalMoves}
+          fen={quiz.fen}
+          legalMoves={
+            answered || guesses.length >= GUESSES
+              ? []
+              : quiz.legalMoves.map((m) => ({ from: m.from, to: m.to, promotion: (m.promotion ?? undefined) as LegalMove["promotion"] }))
+          }
           orientation={orientation}
-          onMove={handleProposeMove}
-          markers={markers}
-          disabled={answered || checking}
+          onMove={handleGuess}
+          arrows={arrows}
+          disabled={answered}
         />
       );
     } else {
+      const arrows =
+        nav.ply === 0
+          ? lesson.plans.filter((p) => planFilter === "both" || p.side === planFilter).flatMap((p) => p.arrows)
+          : [];
       board = (
         <Chessboard
           key={step}
-          fen={fen}
+          fen={lesson.mainLineFens[nav.ply] ?? lesson.fen}
           legalMoves={[]}
           orientation={orientation}
-          animateEntry={step === "OVERVIEW"}
+          arrows={arrows}
           disabled
         />
       );
     }
   }
 
-  const prompt =
-    step === "WEAKEST_SQUARE"
-      ? "Click the White piece with the fewest defenders, then submit."
-      : step === "WHITE_MOVE"
-        ? "Find White's best first move, then submit."
-        : step === "BLACK_MOVE"
-          ? "Now find Black's best reply, then submit."
-          : null;
-  const canSubmit = step === "WEAKEST_SQUARE" ? pickedSquare !== null : proposedMove !== null;
-  const currentIndex = STEPS.findIndex((s) => s.step === step);
+  const sideToMove = quiz?.sideToMove;
+  const bar = (color: "white" | "black") => (
+    <PlayerBar
+      color={color}
+      name={color === "white" ? "White" : "Black"}
+      detail={sideToMove === color && !answered ? "to move" : undefined}
+      active={sideToMove === color && !answered}
+    />
+  );
 
+  // ---------- Left column content per step ----------
+
+  const currentIndex = STEPS.findIndex((s) => s.step === step);
+  let content = null;
   let action = null;
-  if (step === "OVERVIEW") {
+
+  if (!lesson) {
+    content = error ? <p className="error-text">{error}</p> : <p className="side-text muted">Preparing today's lesson...</p>;
+  } else if (step === "FEATURES") {
+    content = (
+      <>
+        <p className="side-text muted">Click a feature to see it on the board.</p>
+        <ul className="feature-list">
+          {lesson.features.map((feature, i) => (
+            <li key={feature.title}>
+              <button
+                type="button"
+                className={i === featureIndex ? "feature-item feature-current" : "feature-item"}
+                onClick={() => setFeatureIndex(i)}
+              >
+                <span className="feature-title">{feature.title}</span>
+                {i === featureIndex && <span className="feature-text">{feature.text}</span>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </>
+    );
     action = (
       <button className="big-button" onClick={advance}>
-        Start
+        Start the questions
       </button>
     );
-  } else if (step === "DONE") {
+  } else if (step === "WEAKEST_PAWN") {
+    content = (
+      <>
+        <p className="learn-prompt">{lesson.weakestPawn.question}</p>
+        {!answered && (
+          <p className="side-text muted">
+            {pickHint ?? (pickedSquare ? `You picked ${pickedSquare}. Change it or submit.` : "Click a pawn on the board.")}
+          </p>
+        )}
+        {answered && (
+          <p className={`learn-feedback ${weakestCorrect ? "learn-feedback-correct" : "learn-feedback-wrong"}`}>
+            {weakestCorrect ? "Correct! " : `Not quite - you picked ${pickedSquare}. `}
+            {lesson.weakestPawn.explanation}
+          </p>
+        )}
+      </>
+    );
+    action = answered ? (
+      <button className="big-button" onClick={advance}>
+        Next
+      </button>
+    ) : (
+      <button className="big-button" onClick={submitWeakestPawn} disabled={!pickedSquare}>
+        Submit
+      </button>
+    );
+  } else if (quiz) {
+    content = (
+      <>
+        <p className="learn-prompt">{quiz.prompt}</p>
+        {!answered ? (
+          <>
+            <p className="side-text muted">
+              Play a move on the board to add it. Remove one to change your mind.
+            </p>
+            <ol className="guess-list">
+              {Array.from({ length: GUESSES }, (_, i) => guesses[i]).map((guess, i) => (
+                <li key={i} className={guess ? "guess guess-filled" : "guess"}>
+                  <span className="guess-number">{i + 1}</span>
+                  <span className="guess-san">{guess ? guess.san : "-"}</span>
+                  {guess && (
+                    <button
+                      type="button"
+                      className="guess-remove"
+                      aria-label={`Remove ${guess.san}`}
+                      onClick={() => setGuesses((g) => g.filter((x) => x !== guess))}
+                    >
+                      ×
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </>
+        ) : (
+          <>
+            <p
+              className={`learn-feedback ${
+                (step === "WHITE_MOVES" ? whiteFound : blackFound) > 0 ? "learn-feedback-correct" : "learn-feedback-wrong"
+              }`}
+            >
+              You found {step === "WHITE_MOVES" ? whiteFound : blackFound} of Stockfish's top 3.
+            </p>
+            <ol className="best-list">
+              {quiz.bestMoves.map((best) => {
+                const found = guesses.some((g) => sameMove(g, best));
+                return (
+                  <li key={best.san} className={found ? "best best-found" : "best"}>
+                    <span className="best-san">{best.san}</span>
+                    <span className="best-score">{best.score}</span>
+                    <span className="best-status">{found ? "Found" : "Missed"}</span>
+                  </li>
+                );
+              })}
+            </ol>
+            {guesses.some((g) => !quiz.bestMoves.some((b) => sameMove(b, g))) && (
+              <p className="side-text muted">
+                Not in the top 3:{" "}
+                {guesses
+                  .filter((g) => !quiz.bestMoves.some((b) => sameMove(b, g)))
+                  .map((g) => g.san)
+                  .join(", ")}{" "}
+                (red arrows).
+              </p>
+            )}
+          </>
+        )}
+      </>
+    );
+    action = answered ? (
+      <button className="big-button" onClick={advance}>
+        Next
+      </button>
+    ) : (
+      <button className="big-button" onClick={submitGuesses} disabled={guesses.length < GUESSES}>
+        Submit {guesses.length}/{GUESSES}
+      </button>
+    );
+  } else {
+    content = (
+      <>
+        <SegmentedControl
+          aria-label="Show plans for"
+          options={[
+            { value: "both" as const, label: "Both" },
+            { value: "white" as const, label: "White" },
+            { value: "black" as const, label: "Black" },
+          ]}
+          value={planFilter}
+          onChange={(v) => {
+            setPlanFilter(v);
+            nav.first();
+          }}
+        />
+        {lesson.plans.map((plan) => (
+          <p key={plan.side} className="side-text plan-text">
+            <span className={`plan-swatch plan-swatch-${plan.side}`} aria-hidden />
+            {plan.text}
+          </p>
+        ))}
+        <p className="side-text muted">Main line: {lesson.mainLine}. Step through it with the buttons on the right.</p>
+        <div className="score-summary">
+          <span>Weakest pawn: {weakestCorrect ? "correct" : "missed"}</span>
+          <span>White's best moves: {whiteFound}/3</span>
+          <span>Black's best replies: {blackFound}/3</span>
+        </div>
+      </>
+    );
     action = (
       <button className="big-button" onClick={handlePlayWithFriend} disabled={creatingGame}>
         {creatingGame ? "Starting..." : "Play this position with a friend"}
-      </button>
-    );
-  } else if (answered) {
-    action = (
-      <button className="big-button" onClick={advance}>
-        {step === "BLACK_MOVE" ? "Finish" : "Next"}
-      </button>
-    );
-  } else if (step !== "LOADING") {
-    action = (
-      <button
-        className="big-button"
-        disabled={!canSubmit || checking}
-        onClick={() =>
-          step === "WEAKEST_SQUARE" ? handleSubmitWeakestSquare() : handleSubmitMove(blackToMove ? "black" : "white")
-        }
-      >
-        {checking ? "Checking..." : "Submit"}
       </button>
     );
   }
@@ -304,7 +404,7 @@ export function LearnTab() {
       subtitle="One Chess960 position a day, the same for everyone"
       headerAside={
         <span className="streak-pill">
-          {streak.currentStreak > 0 ? `${streak.currentStreak} day streak` : "Start a streak today"}
+          {progress.streak > 0 ? `${progress.streak} day streak` : "Start a streak today"}
         </span>
       }
       left={
@@ -312,15 +412,27 @@ export function LearnTab() {
           <IdentityCard
             initial="#"
             tone="accent"
-            title={dailyNumber === null ? "Today's position" : `Position #${dailyNumber}`}
-            detail="Today's position"
+            title={lesson ? `Position #${lesson.number}` : "Today's position"}
+            detail={lesson ? `Stockfish: ${lesson.evaluation}` : "Loading"}
           />
+          <SideCard>
+            <div className="side-section learn-body">{content}</div>
+          </SideCard>
+          {action}
+          <PreferenceToggles />
+        </>
+      }
+      top={bar(orientation === "w" ? "black" : "white")}
+      board={board}
+      bottom={bar(orientation === "w" ? "white" : "black")}
+      right={
+        <>
           <SideCard>
             <div className="side-section">
               <span className="side-label">Lesson</span>
               <ol className="learn-steps">
                 {STEPS.map((s, i) => {
-                  const state = step === "DONE" || i < currentIndex ? "done" : i === currentIndex ? "current" : "todo";
+                  const state = i < currentIndex ? "done" : i === currentIndex ? "current" : "todo";
                   return (
                     <li key={s.step} className={`learn-step learn-step-${state}`}>
                       <span className="learn-step-number">{i + 1}</span>
@@ -330,42 +442,14 @@ export function LearnTab() {
                 })}
               </ol>
             </div>
-
-            <div className="side-section learn-body">
-              {step === "LOADING" && !error && <p className="side-text muted">Loading today's lesson...</p>}
-              {step === "OVERVIEW" && overview && (
-                <>
-                  <OverviewCard overview={overview} />
-                  <p className="side-text muted">A few facts about today's position. Then find the best moves.</p>
-                </>
-              )}
-              {prompt && <p className="learn-prompt">{prompt}</p>}
-              {feedback && (
-                <p
-                  className={`learn-feedback ${
-                    lastCorrect === true ? "learn-feedback-correct" : lastCorrect === false ? "learn-feedback-wrong" : ""
-                  }`}
-                >
-                  {feedback}
-                </p>
-              )}
-              {step === "DONE" && (
-                <p className="learn-prompt">
-                  Lesson complete - {streak.currentStreak} day{streak.currentStreak === 1 ? "" : "s"} in a row. Come
-                  back tomorrow for a new position.
-                </p>
-              )}
-              {error && <p className="error-text">{error}</p>}
-            </div>
           </SideCard>
-          {action}
-          <PreferenceToggles />
+          <NotationPanel
+            moves={step === "PLANS" && lesson ? lesson.mainLineMoves : []}
+            nav={step === "PLANS" ? nav : idleNav}
+            onFlip={() => setFlipped((f) => !f)}
+          />
         </>
       }
-      top={bar(blackAtBottom ? "white" : "black")}
-      board={board}
-      bottom={bar(blackAtBottom ? "black" : "white")}
-      right={<NotationPanel moves={line} nav={nav} onFlip={() => setFlipped((f) => !f)} />}
     />
   );
 }

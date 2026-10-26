@@ -86,6 +86,8 @@ class LessonBuilderTest {
     @Test
     void plansSplitTheMainLineBySide() {
         assertEquals("1. e4 e5 2. Ne3 g6", lesson.mainLine());
+        assertEquals(List.of("e4", "e5", "Ne3", "g6"), lesson.mainLineMoves());
+        assertEquals(5, lesson.mainLineFens().size());
         assertEquals(List.of("e4", "Ne3"), lesson.plans().get(0).moves());
         assertEquals(List.of("e5", "g6"), lesson.plans().get(1).moves());
         assertEquals(new Arrow("d1", "e3", "white"), lesson.plans().get(0).arrows().get(1));

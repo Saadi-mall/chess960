@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { usePreferences } from "../preferencesContext";
 import { squaresFromFen } from "./fen";
 import { fileOf, rankOf, squareAt, type LegalMove } from "./types";
@@ -19,6 +19,16 @@ const BOARD = SIZE * 8;
 /** A colored square overlay the parent controls directly - used by the Learn tab to show
  * a staged quiz answer (amber, "selected") and, after grading, the correct answer (green)
  * and the learner's wrong answer (red). */
+/** An arrow drawn over the board, e.g. a plan move or a quiz guess. */
+export interface BoardArrow {
+  from: string;
+  to: string;
+  /** feature: a fact about the position; white/black: a side's plan; good/bad: graded answers; guess: not yet graded. */
+  color: "feature" | "white" | "black" | "good" | "bad" | "guess";
+}
+
+const ARROW_COLORS: BoardArrow["color"][] = ["feature", "white", "black", "good", "bad", "guess"];
+
 export interface SquareMarker {
   square: string;
   kind: "selected" | "correct" | "incorrect";
@@ -40,6 +50,7 @@ interface ChessboardProps {
   /** Parent-controlled square highlights, drawn over the board's own selection highlight -
    * see {@link SquareMarker}. */
   markers?: SquareMarker[];
+  arrows?: BoardArrow[];
   /** Ignores all clicks/drags - used once a quiz step has been graded, so the board stops
    * taking input while the answer is on screen. */
   disabled?: boolean;
@@ -59,6 +70,7 @@ export function Chessboard({
   animateEntry = false,
   onSquareClick,
   markers,
+  arrows = [],
   disabled = false,
 }: ChessboardProps) {
   const squares = useMemo(() => squaresFromFen(fen), [fen]);
@@ -70,6 +82,8 @@ export function Chessboard({
   const svgRef = useRef<SVGSVGElement>(null);
 
   const { prefs } = usePreferences();
+  // Marker ids must be unique in the document, in case two boards are ever on one page.
+  const arrowId = useId().replace(/:/g, "");
   const entryOffsets = useBackRankEntryAnimation(fen, animateEntry && prefs.animations);
 
   const destinations = useMemo(() => {
@@ -213,6 +227,7 @@ export function Chessboard({
           );
         })}
         {prefs.showLegalMoves && renderMoveHints(orientation, destinations, squares)}
+        {renderArrows(arrows, orientation, arrowId)}
         {drag && draggedXY && (
           <g
             className="piece piece-dragging"
@@ -307,6 +322,58 @@ function renderSquares(
     }
   }
   return squares;
+}
+
+/** Arrows from square centre to square centre, stopping short so the head sits inside
+ * the target square. Each colour has its own arrowhead marker (SVG markers can't inherit
+ * the line's colour). */
+function renderArrows(arrows: BoardArrow[], orientation: "w" | "b", id: string) {
+  if (arrows.length === 0) return null;
+  const centre = (square: string) => {
+    const file = orientation === "w" ? fileOf(square) : 7 - fileOf(square);
+    const rank = orientation === "w" ? 7 - rankOf(square) : rankOf(square);
+    return { x: file * SIZE + SIZE / 2, y: rank * SIZE + SIZE / 2 };
+  };
+  return (
+    <g className="arrows">
+      <defs>
+        {ARROW_COLORS.map((color) => (
+          <marker
+            key={color}
+            id={`${id}-${color}`}
+            viewBox="0 0 10 10"
+            refX="5"
+            refY="5"
+            markerWidth="3.2"
+            markerHeight="3.2"
+            orient="auto-start-reverse"
+          >
+            <path d="M0,0 L10,5 L0,10 z" className={`arrow-head arrow-${color}`} />
+          </marker>
+        ))}
+      </defs>
+      {arrows.map((arrow, i) => {
+        const a = centre(arrow.from);
+        const b = centre(arrow.to);
+        const length = Math.hypot(b.x - a.x, b.y - a.y);
+        if (length === 0) return null;
+        const shorten = 22;
+        const end = { x: b.x - ((b.x - a.x) / length) * shorten, y: b.y - ((b.y - a.y) / length) * shorten };
+        return (
+          <line
+            key={`${arrow.from}-${arrow.to}-${i}`}
+            data-arrow={`${arrow.from}-${arrow.to}`}
+            x1={a.x}
+            y1={a.y}
+            x2={end.x}
+            y2={end.y}
+            className={`arrow-line arrow-${arrow.color}`}
+            markerEnd={`url(#${id}-${arrow.color})`}
+          />
+        );
+      })}
+    </g>
+  );
 }
 
 /**

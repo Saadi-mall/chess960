@@ -33,8 +33,12 @@
   --board-success: rgba(62, 207, 142, 0.8);
   --board-danger: rgba(240, 90, 76, 0.75);
   --board-hint: rgba(20, 30, 10, 0.3);
-  --board-arrow-white: rgba(255, 170, 0, 0.85);
+  --board-arrow-feature: rgba(255, 196, 0, 0.85);
+  --board-arrow-white: rgba(255, 140, 0, 0.85);
   --board-arrow-black: rgba(56, 132, 255, 0.85);
+  --board-arrow-good: rgba(24, 190, 120, 0.9);
+  --board-arrow-bad: rgba(235, 70, 55, 0.85);
+  --board-arrow-guess: rgba(120, 90, 220, 0.8);
 
   /* Colours that stand for the White and Black sides (avatars, evaluation bar). */
   --side-white: #f2f2ee;

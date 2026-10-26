@@ -58,6 +58,7 @@ public final class LessonBuilder {
         List<String> mainLineUci = new ArrayList<>();
         mainLineUci.add(bestWhite);
         mainLineUci.addAll(blackLines.get(0).pv());
+        MainLine mainLine = replay(startFen, mainLineUci);
 
         return new Lesson(
                 date.toString(),
@@ -79,6 +80,8 @@ public final class LessonBuilder {
                         candidates(blackFen, blackLines, Color.BLACK),
                         legalMovesWithSan(blackFen)),
                 mainLineText(startFen, mainLineUci),
+                mainLine.moves(),
+                mainLine.fens(),
                 plans(startFen, mainLineUci));
     }
 
@@ -125,8 +128,10 @@ public final class LessonBuilder {
                     : "brings the " + alg(rookFrom) + " rook to " + alg(rookDest);
             parts.add((kingside ? "Castling kingside (O-O) " : "Castling queenside (O-O-O) ")
                     + kingPart + " and " + rookPart + ", with " + blockersPhrase(blockers) + " in the way.");
+            // One arrow per castle - the king's path, or the rook's when the king stays put -
+            // so the two castles' arrows don't pile up along the back rank.
             if (kingDest != king) arrows.add(new Arrow(alg(king), alg(kingDest), "feature"));
-            if (rookDest != rookFrom) arrows.add(new Arrow(alg(rookFrom), alg(rookDest), "feature"));
+            else if (rookDest != rookFrom) arrows.add(new Arrow(alg(rookFrom), alg(rookDest), "feature"));
         }
         return new Feature(
                 "Kings and castling",
@@ -289,8 +294,26 @@ public final class LessonBuilder {
     static List<LegalMoveSan> legalMovesWithSan(String fen) {
         Position position = Fen.parse(fen);
         return MoveGenerator.legalMoves(position).stream()
-                .map(m -> new LegalMoveSan(alg(m.from()), alg(m.to()), promotionLetter(m.promotion()), San.of(position, m)))
+                .map(m -> new LegalMoveSan(
+                        alg(m.from()), alg(m.to()), promotionLetter(m.promotion()), San.of(position, m), alg(landingSquare(m))))
                 .toList();
+    }
+
+    private record MainLine(List<String> moves, List<String> fens) {}
+
+    private static MainLine replay(String startFen, List<String> uciLine) {
+        Position position = Fen.parse(startFen);
+        List<String> moves = new ArrayList<>();
+        List<String> fens = new ArrayList<>(List.of(startFen));
+        for (String uci : uciLine) {
+            if (moves.size() == MAIN_LINE_PLIES) break;
+            Optional<Move> move = find(position, uci);
+            if (move.isEmpty()) break;
+            moves.add(San.of(position, move.get()));
+            position.makeMove(move.get());
+            fens.add(Fen.toShredderFen(position));
+        }
+        return new MainLine(moves, fens);
     }
 
     private static String mainLineText(String startFen, List<String> uciLine) {
