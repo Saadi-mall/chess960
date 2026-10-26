@@ -29,6 +29,16 @@ class StockfishEngineTest {
     }
 
     @Test
+    void returnsThreeDistinctLinesBestFirst() {
+        var lines = engine.topLines(Fen.STANDARD_START, 400, 3);
+
+        assertEquals(3, lines.size());
+        assertEquals(3, lines.stream().map(l -> l.pv().get(0)).distinct().count());
+        assertTrue(lines.get(0).scoreCentipawns() >= lines.get(2).scoreCentipawns());
+        assertTrue(lines.get(0).pv().size() > 1, "a line should hold more than its first move");
+    }
+
+    @Test
     void findsABackRankMateInOne() {
         EngineEvaluation evaluation = engine.evaluate("6k1/5ppp/8/8/8/8/8/4R1K1 w - - 0 1", 300);
 

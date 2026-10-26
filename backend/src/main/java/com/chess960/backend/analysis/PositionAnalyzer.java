@@ -84,25 +84,31 @@ public final class PositionAnalyzer {
      * "how many moves until this side could castle", not an exact move count.
      */
     private static Integer castlingDistance(Position position, Color color) {
-        int kingFrom = position.findKing(color);
-        int backRank = Square.rank(kingFrom);
         Integer best = null;
-
         for (CastleSide side : CastleSide.values()) {
-            int rookFile = position.castling().rookFile(color, side);
-            if (rookFile == CastlingRights.NONE) {
-                continue;
-            }
-            int rookFrom = Square.of(rookFile, backRank);
-            int kingDest = Square.of(side == CastleSide.KINGSIDE ? 6 : 2, backRank);
-            int rookDest = Square.of(side == CastleSide.KINGSIDE ? 5 : 3, backRank);
-
-            int blockers = countBlockers(position, kingFrom, kingDest, rookFrom, rookDest, backRank);
-            if (best == null || blockers < best) {
+            Integer blockers = castlingBlockers(position, color, side);
+            if (blockers != null && (best == null || blockers < best)) {
                 best = blockers;
             }
         }
         return best;
+    }
+
+    /**
+     * How many of this side's own pieces stand on the squares its king and rook would need
+     * to cross to castle on {@code side}, or null if it has no right to castle that way.
+     */
+    public static Integer castlingBlockers(Position position, Color color, CastleSide side) {
+        int rookFile = position.castling().rookFile(color, side);
+        if (rookFile == CastlingRights.NONE) {
+            return null;
+        }
+        int kingFrom = position.findKing(color);
+        int backRank = Square.rank(kingFrom);
+        int rookFrom = Square.of(rookFile, backRank);
+        int kingDest = Square.of(side == CastleSide.KINGSIDE ? 6 : 2, backRank);
+        int rookDest = Square.of(side == CastleSide.KINGSIDE ? 5 : 3, backRank);
+        return countBlockers(position, kingFrom, kingDest, rookFrom, rookDest, backRank);
     }
 
     private static int countBlockers(
