@@ -5,6 +5,8 @@ services:
     name: chess960-backend
     runtime: docker
     plan: free
+    # Same area as the Supabase project (AWS us-east-1), so database calls stay fast.
+    region: virginia
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     healthCheckPath: /actuator/health
