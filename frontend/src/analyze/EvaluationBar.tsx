@@ -31,11 +31,23 @@ export function EvaluationBar({ evaluation, turn }: EvaluationBarProps) {
   }
 
   return (
-    <div className="eval-bar-card panel-card">
-      <div className="eval-bar">
+    <div className="eval">
+      <div className="eval-row">
+        <span className="eval-label">{label}</span>
+        <span className="eval-best">
+          {evaluation.bestMoveSan ? (
+            <>
+              Best move <strong>{evaluation.bestMoveSan}</strong>
+            </>
+          ) : (
+            "No moves left"
+          )}
+        </span>
+      </div>
+      <div className="eval-bar" role="img" aria-label={`Evaluation ${label}`}>
         <div className="eval-bar-white" style={{ width: `${whiteFraction * 100}%` }} />
       </div>
-      <span className="eval-label">{label}</span>
+      <span className="eval-depth">Stockfish depth {evaluation.depth}</span>
     </div>
   );
 }

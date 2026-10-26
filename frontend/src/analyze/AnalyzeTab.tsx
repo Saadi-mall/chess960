@@ -2,7 +2,11 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Chessboard } from "../board/Chessboard";
 import type { LegalMove } from "../board/types";
-import { SegmentedControl } from "../SegmentedControl";
+import { BoardLayout } from "../layout/BoardLayout";
+import { MoveList } from "../layout/MoveList";
+import { PlayerBar } from "../layout/PlayerBar";
+import { PositionPicker } from "../positions/PositionPicker";
+import type { PositionMode } from "../positions/previewApi";
 import { useStartingPreview } from "../positions/useStartingPreview";
 import { fetchStartingPosition, playMove } from "./api";
 import { EvaluationBar } from "./EvaluationBar";
@@ -17,20 +21,15 @@ const STATUS_LABEL: Record<string, string> = {
   DRAW_FIFTY_MOVE: "Draw by the 50-move rule",
 };
 
-const POSITION_MODE_OPTIONS = [
-  { value: "RANDOM" as const, label: "Random" },
-  { value: "NUMBER" as const, label: "Number" },
-  { value: "DAILY" as const, label: "Today's lesson" },
-];
-
 export function AnalyzeTab() {
-  const [positionMode, setPositionMode] = useState<"RANDOM" | "NUMBER" | "DAILY">("RANDOM");
+  const [positionMode, setPositionMode] = useState<PositionMode>("RANDOM");
   const [number, setNumber] = useState(518);
   const [shuffleKey, setShuffleKey] = useState(0);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [current, setCurrent] = useState<AnalysisResponse | null>(null);
   const [moveHistory, setMoveHistory] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [thinking, setThinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { fen: previewFen, resolvedNumber } = useStartingPreview(positionMode, number, shuffleKey);
@@ -53,125 +52,124 @@ export function AnalyzeTab() {
 
   async function handleMove(move: LegalMove) {
     if (!current) return;
+    setThinking(true);
+    setError(null);
     try {
       const response = await playMove(current.fen, move.from, move.to, move.promotion);
       setCurrent(response);
-      setMoveHistory((history) => [
-        ...history,
-        move.from + move.to + (move.promotion ?? ""),
-      ]);
+      if (response.lastMoveSan) {
+        const san = response.lastMoveSan;
+        setMoveHistory((history) => [...history, san]);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "That move was rejected");
+    } finally {
+      setThinking(false);
     }
+  }
+
+  function sideBar(color: "white" | "black", toMove: boolean) {
+    return (
+      <PlayerBar
+        color={color}
+        name={color === "white" ? "White" : "Black"}
+        detail={toMove ? "to move" : undefined}
+        active={toMove}
+      />
+    );
   }
 
   if (!current || !overview) {
     return (
-      <div className="board-page">
-        <div className="board-page-board">
-          {previewFen && <Chessboard fen={previewFen} legalMoves={[]} animateEntry />}
-        </div>
-
-        <div className="board-page-panel">
-          <div className="panel-card">
-            <h2>Set up a position</h2>
-
-            <div className="form-section">
-              <span className="form-section-label">Starting position</span>
-              <SegmentedControl
-                aria-label="Starting position"
-                options={POSITION_MODE_OPTIONS}
-                value={positionMode}
-                onChange={setPositionMode}
-              />
-              {positionMode === "NUMBER" && (
-                <input
-                  type="number"
-                  min={0}
-                  max={959}
-                  value={number}
-                  onChange={(e) => setNumber(Number(e.target.value))}
-                  className="number-input"
-                  aria-label="Chess960 position number"
-                  style={{ marginTop: "var(--space-2)" }}
-                />
-              )}
-              {positionMode === "RANDOM" && (
-                <button
-                  type="button"
-                  className="secondary-button"
-                  style={{ marginTop: "var(--space-2)", width: "100%" }}
-                  onClick={() => setShuffleKey((k) => k + 1)}
-                >
-                  Shuffle again
-                </button>
-              )}
-              {resolvedNumber !== null && (
-                <p className="status-text" style={{ margin: "var(--space-2) 0 0" }}>
-                  Position #{resolvedNumber}
-                </p>
-              )}
+      <BoardLayout
+        top={sideBar("black", false)}
+        board={previewFen && <Chessboard fen={previewFen} legalMoves={[]} animateEntry disabled />}
+        bottom={sideBar("white", false)}
+        panel={
+          <>
+            <div className="panel-section">
+              <h2>Analyze a position</h2>
+              <p className="panel-note">
+                Pick a starting position to see facts about it, then play moves with a Stockfish evaluation
+                after each one.
+              </p>
             </div>
-
-            {error && <p className="error-text">{error}</p>}
-
-            <button className="primary-button" onClick={loadPosition} disabled={loading || !previewFen}>
-              {loading ? "Loading..." : "Analyze"}
-            </button>
-          </div>
-
-          <p className="analyze-chesscom-link">
-            <Link to="/chesscom-import">Or see your Chess960 stats from Chess.com &rarr;</Link>
-          </p>
-        </div>
-      </div>
+            <div className="panel-section panel-section-grow">
+              <PositionPicker
+                mode={positionMode}
+                onModeChange={setPositionMode}
+                number={number}
+                onNumberChange={setNumber}
+                onShuffle={() => setShuffleKey((k) => k + 1)}
+                resolvedNumber={resolvedNumber}
+              />
+            </div>
+            <div className="panel-section">
+              <button className="primary-button" onClick={loadPosition} disabled={loading || !previewFen}>
+                {loading ? "Analyzing..." : "Analyze"}
+              </button>
+              {error && <p className="error-text">{error}</p>}
+              <Link className="analyze-chesscom-link" to="/chesscom-import">
+                Or see your Chess960 stats from Chess.com &rarr;
+              </Link>
+            </div>
+          </>
+        }
+      />
     );
   }
 
   const gameOver = current.status !== "IN_PROGRESS";
 
   return (
-    <div className="board-page">
-      <div className="board-page-board">
+    <BoardLayout
+      top={sideBar("black", !gameOver && current.turn === "black")}
+      board={
         <Chessboard
           fen={current.fen}
-          legalMoves={gameOver ? [] : current.legalMoves}
+          legalMoves={gameOver || thinking ? [] : current.legalMoves}
           onMove={handleMove}
           animateEntry={moveHistory.length === 0}
         />
-      </div>
+      }
+      bottom={sideBar("white", !gameOver && current.turn === "white")}
+      panel={
+        <>
+          <div className="panel-section">
+            <p className="panel-heading">Evaluation{thinking ? " · thinking..." : ""}</p>
+            <EvaluationBar evaluation={current.evaluation} turn={current.turn} />
+            {gameOver && (
+              <p className="panel-status" style={{ marginTop: "var(--space-3)" }}>
+                {STATUS_LABEL[current.status] ?? current.status}
+                {current.winner && ` — ${current.winner === "white" ? "White" : "Black"} wins`}
+              </p>
+            )}
+            {error && <p className="error-text">{error}</p>}
+          </div>
 
-      <div className="board-page-panel">
-        <EvaluationBar evaluation={current.evaluation} turn={current.turn} />
-        <OverviewCard overview={overview} />
+          <div className="panel-section">
+            <OverviewCard overview={overview} />
+          </div>
 
-        {error && <p className="error-text">{error}</p>}
+          <div className="panel-section panel-section-grow">
+            <p className="panel-heading">Moves</p>
+            <MoveList moves={moveHistory} />
+          </div>
 
-        {gameOver && (
-          <p className="status-text status-over">
-            {STATUS_LABEL[current.status] ?? current.status}
-            {current.winner && ` — ${current.winner} wins`}
-          </p>
-        )}
-
-        {moveHistory.length > 0 && (
-          <ol className="move-history panel-card">
-            {moveHistory.map((m, i) => (
-              <li key={i}>{m}</li>
-            ))}
-          </ol>
-        )}
-
-        <button
-          className="secondary-button"
-          onClick={() => {
-            setCurrent(null);
-            setOverview(null);
-          }}
-        >
-          New position
-        </button>
-      </div>
-    </div>
+          <div className="panel-section">
+            <button
+              className="secondary-button"
+              style={{ width: "100%" }}
+              onClick={() => {
+                setCurrent(null);
+                setOverview(null);
+              }}
+            >
+              New position
+            </button>
+          </div>
+        </>
+      }
+    />
   );
 }

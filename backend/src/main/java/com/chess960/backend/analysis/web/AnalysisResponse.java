@@ -9,5 +9,6 @@ public record AnalysisResponse(
         String turn,
         String status,
         String winner,
+        String lastMoveSan,
         OverviewDto overview,
         EvaluationDto evaluation) {}

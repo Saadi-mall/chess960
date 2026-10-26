@@ -1,32 +1,23 @@
 .analyze-chesscom-link {
+  display: block;
   text-align: center;
   margin-top: var(--space-3);
-}
-
-.analyze-chesscom-link a {
   color: var(--color-text-muted);
   font-size: var(--text-sm);
 }
 
-.overview-card {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: var(--space-3) var(--space-4);
-  text-align: left;
-  background: var(--color-panel);
-}
-
+/* The overview lives inside a panel section, so it brings no box of its own. */
 .overview-card h2 {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-bottom: var(--space-2);
+  margin: 0 0 var(--space-2);
   font-size: var(--text-md);
 }
 
 .overview-badge {
   font-family: var(--font-body);
-  font-size: 0.65rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -39,16 +30,17 @@
 .overview-sides {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0 var(--space-3);
+  gap: 0 var(--space-4);
 }
 
 .overview-side h3 {
   font-family: var(--font-body);
   font-size: var(--text-xs);
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
   color: var(--color-text-muted);
-  margin: var(--space-2) 0 var(--space-1);
+  margin: 0 0 var(--space-1);
 }
 
 .overview-side dl {
@@ -58,41 +50,60 @@
 
 .overview-side dt {
   color: var(--color-text-muted);
-  margin-top: var(--space-1);
+  margin-top: var(--space-2);
   font-size: var(--text-xs);
 }
 
 .overview-side dd {
   margin: 0;
+  font-weight: 500;
 }
 
-.eval-bar-card {
+.eval {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: var(--space-2);
 }
 
+.eval-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.eval-label {
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.eval-best {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.eval-best strong {
+  color: var(--color-accent);
+  font-size: var(--text-base);
+}
+
 .eval-bar {
-  flex: 1;
-  height: 0.7rem;
-  background: var(--color-bg);
-  border-radius: var(--radius-sm);
+  height: 0.6rem;
+  background: #1c1610;
+  border-radius: 999px;
   overflow: hidden;
   border: 1px solid var(--color-border);
 }
 
 .eval-bar-white {
   height: 100%;
-  background: var(--color-accent);
+  background: #f6eedf;
   transition: width 400ms ease;
 }
 
-.eval-label {
-  font-family: var(--font-heading);
-  font-size: var(--text-sm);
+.eval-depth {
   color: var(--color-text-muted);
-  white-space: nowrap;
-  flex-shrink: 0;
-  min-width: 2.2rem;
-  text-align: right;
+  font-size: var(--text-xs);
 }

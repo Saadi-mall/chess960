@@ -1,18 +1,315 @@
-/* Generic building blocks shared across tabs: forms, buttons, status text, the segmented
-   control, and the board+panel page layout every board-driven tab (Play/Analyze/Learn)
-   uses. */
+/* Generic building blocks shared across tabs: the board+panel page layout (BoardLayout),
+   player bars, the notation table, the confirm dialog, form controls and buttons. */
 
-.form-section {
-  margin-bottom: var(--space-4);
+/* ---------- Page layout ---------- */
+
+/* container-type: size lets .board-frame size itself from this box's width *and* height. */
+.board-page {
+  flex: 1;
+  min-height: 0;
+  container-type: size;
+  display: flex;
+  justify-content: center;
+  gap: var(--space-5);
+}
+
+.board-stage {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+/* Board plus the two player bars. Its width is the biggest square that fits: the page
+   height minus the two bars and their gaps (6.5rem), or the page width minus the
+   panel's minimum width. */
+.board-frame {
+  width: min(100cqh - 6.5rem, 100cqw - var(--panel-width) - var(--space-5));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.board-placeholder {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  background: var(--color-panel);
+}
+
+/* Takes whatever width the board leaves, between --panel-width and 520px. */
+.side-panel {
+  flex: 1 1 var(--panel-width);
+  min-width: var(--panel-width);
+  max-width: 520px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.panel-section {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.panel-section:last-child {
+  border-bottom: none;
+}
+
+/* The section that soaks up the panel's spare height - usually the notation. */
+.panel-section-grow {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-section h2 {
+  font-size: var(--text-lg);
+  margin: 0 0 var(--space-3);
+}
+
+.panel-heading {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-2);
+}
+
+.panel-status {
+  font-family: var(--font-heading);
+  font-size: var(--text-md);
+  font-weight: 600;
+  margin: 0;
+}
+
+.panel-note {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  margin: var(--space-1) 0 0;
+}
+
+.button-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.button-row > * {
+  flex: 1;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* ---------- Player bars ---------- */
+
+.player-bar {
+  height: 2.75rem;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-1);
+}
+
+.player-chip {
+  flex: 0 0 auto;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+}
+
+.player-chip-white {
+  background: #f6eedf;
+}
+
+.player-chip-black {
+  background: #1c1610;
+}
+
+.player-bar-active .player-chip {
+  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent);
+}
+
+.player-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.player-name {
+  font-weight: 600;
+  font-size: var(--text-base);
+}
+
+.player-detail {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.player-bar > :last-child:not(.player-text) {
+  margin-left: auto;
+}
+
+.clock {
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-raised);
+  border: 1px solid var(--color-border);
+  min-width: 5.5rem;
+  text-align: center;
+}
+
+.clock-active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+.clock-low {
+  color: var(--color-danger);
+}
+
+.clock-active.clock-low {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: #fff;
+}
+
+/* ---------- Notation ---------- */
+
+.move-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0 calc(-1 * var(--space-2));
+}
+
+.move-list table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-base);
+  font-variant-numeric: tabular-nums;
+}
+
+.move-list tr:nth-child(odd) {
+  background: var(--color-raised);
+}
+
+.move-list td {
+  padding: var(--space-1) var(--space-2);
+}
+
+.move-number {
+  width: 2.75rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.move-cell {
+  width: 45%;
+  font-weight: 500;
+}
+
+.move-latest {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.move-list-empty {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  margin: 0 var(--space-2);
+}
+
+/* ---------- Dialog ---------- */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  padding: var(--space-4);
+}
+
+.dialog {
+  width: min(100%, 380px);
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-board);
+  padding: var(--space-5);
+}
+
+.dialog h2 {
+  font-size: var(--text-lg);
+  margin: 0 0 var(--space-2);
+}
+
+.dialog p {
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-5);
+}
+
+.dialog-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.dialog-actions > * {
+  flex: 1;
+}
+
+/* ---------- Form controls ---------- */
+
+.form-section + .form-section {
+  margin-top: var(--space-4);
 }
 
 .form-section-label {
   display: block;
   font-size: var(--text-xs);
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   color: var(--color-text-muted);
   margin-bottom: var(--space-2);
+}
+
+.position-picker-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  min-height: 2.4rem;
+}
+
+.position-picker-row .number-input,
+.position-picker-row .secondary-button {
+  flex: 0 0 9rem;
+  width: 9rem;
+}
+
+.position-number {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  color: var(--color-accent);
 }
 
 .segmented-control {
@@ -29,7 +326,7 @@
   border: none;
   background: transparent;
   color: var(--color-text-muted);
-  padding: var(--space-2) var(--space-2);
+  padding: var(--space-2);
   border-radius: var(--radius-sm);
   font-size: var(--text-sm);
   font-family: inherit;
@@ -76,6 +373,8 @@
   -moz-appearance: textfield;
 }
 
+/* ---------- Buttons ---------- */
+
 .primary-button {
   width: 100%;
   background: var(--color-accent);
@@ -94,8 +393,13 @@
 }
 
 .primary-button:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: default;
+}
+
+.danger-button {
+  background: var(--color-danger);
+  color: #fff;
 }
 
 .secondary-button {
@@ -105,125 +409,66 @@
   border-radius: var(--radius);
   padding: var(--space-2) var(--space-4);
   font-size: var(--text-sm);
+  font-weight: 500;
   cursor: pointer;
   transition: border-color 120ms ease, background 120ms ease;
 }
 
-.secondary-button:hover {
+.secondary-button:hover:not(:disabled) {
   border-color: var(--color-accent);
   background: var(--color-raised-hover);
 }
+
+.secondary-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ---------- Text ---------- */
 
 .status-text {
   color: var(--color-text-muted);
   text-align: center;
 }
 
-.status-over {
-  font-weight: 600;
-  color: var(--color-text);
-}
-
 .error-text {
   color: var(--color-danger);
-  text-align: center;
+  margin: var(--space-2) 0 0;
 }
 
 .success-text {
   color: var(--color-success);
 }
 
-.move-history {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  font-family: var(--font-heading);
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
-}
-
-/* Self-centers vertically within .app-main's column flex (auto margins absorb the extra
-   space) without needing the parent to toggle anything based on which page is active. */
+/* Self-centers vertically within .app-main's column flex - used by pages without a board. */
 .centered-page {
   margin-top: auto;
   margin-bottom: auto;
   width: 100%;
 }
 
-/* The board+panel layout shared by Play/Analyze/Learn: the board is the dominant element,
-   a fixed-width panel sits right next to it. Used for every state of every tab - setup,
-   waiting, live play - not just once a board actually has a game attached to it, so the
-   screen is never a small form floating in empty space. */
+/* ---------- Narrow screens: board on top, panel below ---------- */
 
-.board-page {
-  display: flex;
-  align-items: stretch;
-  gap: var(--space-4);
-  height: 100%;
-  min-height: 0;
-  justify-content: center;
-}
-
-.board-page-board {
-  flex: 1 1 auto;
-  min-width: 0;
-  min-height: 0;
-  container-type: size;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  /* Padding here (rather than capping the board's own size) is what keeps the board at
-     roughly 85% of the available height instead of edge-to-edge. */
-  padding: var(--space-5);
-}
-
-.board-page-panel {
-  flex: 0 0 320px;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  overflow-y: auto;
-  padding: var(--space-1);
-}
-
-.panel-card {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  background: var(--color-panel);
-  box-shadow: var(--shadow-card);
-  padding: var(--space-4);
-}
-
-.panel-card h2 {
-  font-size: var(--text-md);
-  margin-bottom: var(--space-3);
-}
-
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .board-page {
     flex-direction: column;
-    height: auto;
-    gap: var(--space-3);
+    flex: 0 0 auto;
+    container-type: normal;
+    gap: var(--space-4);
   }
 
-  .board-page-board {
-    /* Height tracks width (the board is square and the narrow viewport is the limiting
-       dimension) instead of reserving a fixed vh that leaves dead space above/below a
-       board that's actually sized by its width. */
-    aspect-ratio: 1;
-    max-height: 58vh;
-    flex: 0 0 auto;
+  .board-frame {
     width: 100%;
-    padding: var(--space-2);
   }
 
-  .board-page-panel {
+  .side-panel {
     flex: 0 0 auto;
-    width: 100%;
-    overflow-y: visible;
+    min-width: 0;
+    max-width: none;
+    overflow: visible;
+  }
+
+  .move-list {
+    max-height: 14rem;
   }
 }

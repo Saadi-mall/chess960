@@ -1,14 +1,13 @@
-/* Sized by the .board-page-board container query context (shared.css) - 100cqmin is
-   "as big as the available square will go", however the available space is shaped. */
+/* Fills whatever width its parent gives it and stays square - BoardLayout's .board-frame
+   decides how big that is. */
 .chessboard-wrap {
   position: relative;
-  width: 100cqmin;
-  height: 100cqmin;
-  margin: 0 auto;
-  border-radius: 8px;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
   overflow: hidden;
-  box-shadow: var(--shadow-card);
-  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-board);
+  outline: 1px solid var(--color-border);
 }
 
 .chessboard {
@@ -26,11 +25,7 @@
   fill: var(--board-dark);
 }
 
-.square-selected {
-  fill: var(--board-selected);
-  pointer-events: none;
-}
-
+.square-selected,
 .square-marker-selected {
   fill: var(--board-selected);
   pointer-events: none;
@@ -46,20 +41,32 @@
   pointer-events: none;
 }
 
-.chessboard-disabled .piece {
-  cursor: default;
+.move-dot {
+  fill: var(--board-hint);
+  pointer-events: none;
 }
 
-.move-dot {
-  fill: var(--board-highlight);
+.move-ring {
+  fill: none;
+  stroke: var(--board-hint);
+  stroke-width: 9;
   pointer-events: none;
 }
 
 .coord {
-  font-size: 13px;
-  fill: var(--color-text-muted);
+  font-size: 17px;
+  font-weight: 600;
   font-family: var(--font-body);
   user-select: none;
+  pointer-events: none;
+}
+
+.coord-on-light {
+  fill: var(--board-dark);
+}
+
+.coord-on-dark {
+  fill: var(--board-light);
 }
 
 .piece {
@@ -78,6 +85,10 @@
   filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.45));
 }
 
+.chessboard-disabled .piece {
+  cursor: default;
+}
+
 .promotion-overlay {
   position: absolute;
   inset: 0;
@@ -89,19 +100,19 @@
 
 .promotion-picker {
   display: flex;
-  gap: 0.4rem;
+  gap: var(--space-2);
   background: var(--color-raised);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 0.5rem;
+  border-radius: var(--radius);
+  padding: var(--space-2);
   box-shadow: var(--shadow-card);
 }
 
 .promotion-option {
   border: none;
   background: var(--color-bg);
-  border-radius: 6px;
-  padding: 0.3rem;
+  border-radius: var(--radius-sm);
+  padding: var(--space-1);
   cursor: pointer;
   line-height: 0;
 }

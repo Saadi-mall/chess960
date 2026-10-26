@@ -7,6 +7,7 @@ import com.chess960.backend.rules.MoveGenerator;
 import com.chess960.backend.rules.Piece;
 import com.chess960.backend.rules.PieceType;
 import com.chess960.backend.rules.Position;
+import com.chess960.backend.rules.San;
 import com.chess960.backend.rules.Square;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -28,7 +29,7 @@ public class PositionService {
 
     public PositionStateResponse legalMovesFor(String fen) {
         Position position = Fen.parse(fen);
-        return stateOf(position);
+        return stateOf(position, null);
     }
 
     public PositionStateResponse applyMove(MoveRequest request) {
@@ -45,11 +46,12 @@ public class PositionService {
                         .findFirst()
                         .orElseThrow(() -> new IllegalArgumentException("Illegal move"));
 
+        String san = San.of(position, move);
         position.makeMove(move);
-        return stateOf(position);
+        return stateOf(position, san);
     }
 
-    private PositionStateResponse stateOf(Position position) {
+    private PositionStateResponse stateOf(Position position, String lastMoveSan) {
         List<Move> legalMoves = MoveGenerator.legalMoves(position);
         boolean inCheck = MoveGenerator.isInCheck(position, position.sideToMove());
 
@@ -72,7 +74,8 @@ public class PositionService {
                 legalMoves.stream().map(this::toDto).toList(),
                 colorName(position.sideToMove()),
                 status,
-                winner);
+                winner,
+                lastMoveSan);
     }
 
     private boolean hasSufficientMatingMaterial(Position position, Color color) {

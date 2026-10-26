@@ -1,10 +1,16 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Chessboard } from "../board/Chessboard";
+import { BoardLayout } from "../layout/BoardLayout";
+import { PlayerBar } from "../layout/PlayerBar";
 import { SegmentedControl } from "../SegmentedControl";
 import { useStartingPreview } from "../positions/useStartingPreview";
+import { PositionPicker } from "../positions/PositionPicker";
+import type { PositionMode } from "../positions/previewApi";
+import { formatClock } from "./ClockDisplay";
 import { createGame } from "./api";
 import { setSeat } from "./storage";
+import "./Play.css";
 
 const TIME_CONTROLS: Array<{ label: string; initialSeconds: number; incrementSeconds: number }> = [
   { label: "1+0", initialSeconds: 60, incrementSeconds: 0 },
@@ -14,15 +20,9 @@ const TIME_CONTROLS: Array<{ label: string; initialSeconds: number; incrementSec
   { label: "30+0", initialSeconds: 1800, incrementSeconds: 0 },
 ];
 
-const POSITION_MODE_OPTIONS = [
-  { value: "RANDOM" as const, label: "Random" },
-  { value: "NUMBER" as const, label: "Number" },
-  { value: "DAILY" as const, label: "Today's lesson" },
-];
-
 export function CreateGameForm() {
   const navigate = useNavigate();
-  const [positionMode, setPositionMode] = useState<"RANDOM" | "NUMBER" | "DAILY">("RANDOM");
+  const [positionMode, setPositionMode] = useState<PositionMode>("RANDOM");
   const [number, setNumber] = useState(518);
   const [shuffleKey, setShuffleKey] = useState(0);
   const [timeControlIndex, setTimeControlIndex] = useState(2); // 5+0
@@ -30,17 +30,20 @@ export function CreateGameForm() {
   const [busy, setBusy] = useState(false);
 
   const { fen, resolvedNumber } = useStartingPreview(positionMode, number, shuffleKey);
+  const timeControl = TIME_CONTROLS[timeControlIndex];
+  const clock = <div className="clock">{formatClock(timeControl.initialSeconds * 1000)}</div>;
 
   async function handleCreate() {
     setBusy(true);
     setError(null);
     try {
-      const tc = TIME_CONTROLS[timeControlIndex];
+      // A random preview creates exactly the position on screen, not a fresh server roll.
+      const chosenNumber = positionMode === "NUMBER" ? number : resolvedNumber;
       const response = await createGame({
-        positionMode,
-        number: positionMode === "NUMBER" ? number : undefined,
-        initialSeconds: tc.initialSeconds,
-        incrementSeconds: tc.incrementSeconds,
+        positionMode: positionMode === "DAILY" ? "DAILY" : "NUMBER",
+        number: positionMode === "DAILY" ? undefined : (chosenNumber ?? undefined),
+        initialSeconds: timeControl.initialSeconds,
+        incrementSeconds: timeControl.incrementSeconds,
       });
       setSeat(response.gameId, { token: response.token, color: response.color });
       navigate(`/play/${response.gameId}`);
@@ -52,69 +55,46 @@ export function CreateGameForm() {
   }
 
   return (
-    <div className="board-page">
-      <div className="board-page-board">
-        {fen && <Chessboard fen={fen} legalMoves={[]} animateEntry />}
-      </div>
+    <BoardLayout
+      top={<PlayerBar color="black" name="Opponent" detail="Black · joins with your link" trailing={clock} />}
+      board={fen && <Chessboard fen={fen} legalMoves={[]} animateEntry disabled />}
+      bottom={<PlayerBar color="white" name="You" detail="White" trailing={clock} />}
+      panel={
+        <>
+          <div className="panel-section">
+            <h2>New game</h2>
+            <p className="panel-note">Create a game, then send the link to a friend.</p>
+          </div>
 
-      <div className="board-page-panel">
-        <div className="panel-card">
-          <h2>Start a game</h2>
-
-          <div className="form-section">
-            <span className="form-section-label">Starting position</span>
-            <SegmentedControl
-              aria-label="Starting position"
-              options={POSITION_MODE_OPTIONS}
-              value={positionMode}
-              onChange={setPositionMode}
+          <div className="panel-section panel-section-grow">
+            <PositionPicker
+              mode={positionMode}
+              onModeChange={setPositionMode}
+              number={number}
+              onNumberChange={setNumber}
+              onShuffle={() => setShuffleKey((k) => k + 1)}
+              resolvedNumber={resolvedNumber}
             />
-            {positionMode === "NUMBER" && (
-              <input
-                type="number"
-                min={0}
-                max={959}
-                value={number}
-                onChange={(e) => setNumber(Number(e.target.value))}
-                className="number-input"
-                aria-label="Chess960 position number"
-                style={{ marginTop: "var(--space-2)" }}
+
+            <div className="form-section">
+              <span className="form-section-label">Time control</span>
+              <SegmentedControl
+                aria-label="Time control"
+                options={TIME_CONTROLS.map((tc, i) => ({ value: String(i), label: tc.label }))}
+                value={String(timeControlIndex)}
+                onChange={(v) => setTimeControlIndex(Number(v))}
               />
-            )}
-            {positionMode === "RANDOM" && (
-              <button
-                type="button"
-                className="secondary-button"
-                style={{ marginTop: "var(--space-2)", width: "100%" }}
-                onClick={() => setShuffleKey((k) => k + 1)}
-              >
-                Shuffle again
-              </button>
-            )}
-            {resolvedNumber !== null && (
-              <p className="status-text" style={{ margin: "var(--space-2) 0 0" }}>
-                Position #{resolvedNumber}
-              </p>
-            )}
+            </div>
           </div>
 
-          <div className="form-section">
-            <span className="form-section-label">Time control</span>
-            <SegmentedControl
-              aria-label="Time control"
-              options={TIME_CONTROLS.map((tc, i) => ({ value: String(i), label: tc.label }))}
-              value={String(timeControlIndex)}
-              onChange={(v) => setTimeControlIndex(Number(v))}
-            />
+          <div className="panel-section">
+            <button className="primary-button" onClick={handleCreate} disabled={busy || !fen}>
+              {busy ? "Creating..." : "Create game"}
+            </button>
+            {error && <p className="error-text">{error}</p>}
           </div>
-
-          {error && <p className="error-text">{error}</p>}
-
-          <button className="primary-button" onClick={handleCreate} disabled={busy || !fen}>
-            {busy ? "Creating..." : "Create game"}
-          </button>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    />
   );
 }

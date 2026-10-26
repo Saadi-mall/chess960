@@ -75,7 +75,8 @@ public class AnalysisController {
                 rules.turn(),
                 rules.status(),
                 rules.winner(),
+                rules.lastMoveSan(),
                 overview == null ? null : AnalysisMessages.toDto(overview),
-                AnalysisMessages.toDto(evaluation));
+                AnalysisMessages.toDto(evaluation, rules.fen()));
     }
 }

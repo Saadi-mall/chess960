@@ -217,6 +217,26 @@ decorative:
   shows it, and lets the parent later recolor the same squares green/red - and nothing is
   graded, or sent to the server for the move steps, until Submit. Covered by
   `LearnTab.test.tsx`, the project's first frontend test.
+- **Move lists showed raw coordinates like "e3g1".** The move history was the engine's
+  from/to encoding, which for Chess960 castling is "king takes own rook" - unreadable, and
+  not valid notation. Added `San` to the rules package (disambiguation by file/rank among
+  *legal* alternatives only, `exd5`-style pawn captures, `=Q` promotions, `+`/`#`, and
+  `O-O`/`O-O-O` decided by which side the rook is on). It's on the server because SAN
+  depends on the position - captures, ambiguity, check - and the frontend doesn't compute
+  rules. Covered by `SanTest`, including Chess960 castling where the rook starts next to
+  the king.
+- **The second player couldn't join from the same browser.** Seats were kept in
+  `localStorage`, which every tab shares, so opening the invite link in a second tab found
+  the first tab's White seat and became a second White: the game never started and none of
+  Black's controls appeared. Seats are now in `sessionStorage` (per tab, still survives a
+  refresh). Trade-off: closing the tab and reopening the link no longer rejoins as that
+  player.
+- **A "Random" game didn't start on the previewed position.** The create request asked the
+  server to roll a new random number instead of sending the one already on screen. It now
+  sends the previewed number.
+- **Capture and castling targets had no move hint.** Legal-move dots were drawn under the
+  pieces, so any destination with a piece on it (a capture, or the own rook for castling)
+  was hidden. Hints are now drawn above the pieces, as a ring on occupied squares.
 
 ## What I'd do next with more time
 

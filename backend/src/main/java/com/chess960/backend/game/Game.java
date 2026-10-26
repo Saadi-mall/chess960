@@ -7,7 +7,7 @@ import com.chess960.backend.rules.MoveGenerator;
 import com.chess960.backend.rules.Piece;
 import com.chess960.backend.rules.PieceType;
 import com.chess960.backend.rules.Position;
-import com.chess960.backend.rules.Square;
+import com.chess960.backend.rules.San;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -162,8 +162,10 @@ public final class Game {
         setRemaining(mover, remaining + timeControl.incrementSeconds() * 1000L);
         lastMoveEpochMillis = System.currentTimeMillis();
 
+        // SAN has to be worked out before the move is played - it reads the pre-move board.
+        String san = San.of(position, move);
         position.makeMove(move);
-        moveHistory.add(toUci(move));
+        moveHistory.add(san);
         drawOfferBy = null;
 
         updateStatusAfterMove(mover);
@@ -280,14 +282,6 @@ public final class Game {
         if (status != GameStatus.IN_PROGRESS) {
             throw new GameException("Game is not in progress");
         }
-    }
-
-    private static String toUci(Move move) {
-        String uci = Square.toAlgebraic(move.from()) + Square.toAlgebraic(move.to());
-        if (move.promotion() != null) {
-            uci += Character.toLowerCase(new Piece(move.promotion(), Color.WHITE).fenChar());
-        }
-        return uci;
     }
 
     @Override

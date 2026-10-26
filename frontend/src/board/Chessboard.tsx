@@ -184,12 +184,12 @@ export function Chessboard({
     <div className={disabled ? "chessboard-wrap chessboard-disabled" : "chessboard-wrap"}>
       <svg
         ref={svgRef}
-        viewBox={`-18 -18 ${BOARD + 36} ${BOARD + 36}`}
+        viewBox={`0 0 ${BOARD} ${BOARD}`}
         className="chessboard"
         role="group"
         aria-label="Chess board"
       >
-        {renderSquares(orientation, handleSquareClick, destinations, selected, markers)}
+        {renderSquares(orientation, handleSquareClick, selected, markers)}
         {renderCoordinates(orientation)}
         {Object.entries(squares).map(([square, piece]) => {
           if (!piece) return null;
@@ -210,6 +210,7 @@ export function Chessboard({
             </g>
           );
         })}
+        {renderMoveHints(orientation, destinations, squares)}
         {drag && draggedXY && (
           <g
             className="piece piece-dragging"
@@ -248,7 +249,6 @@ function Piece({ piece }: { piece: string }) {
 function renderSquares(
   orientation: "w" | "b",
   onClick: (square: string) => void,
-  destinations: Set<string>,
   selected: string | null,
   markers?: SquareMarker[],
 ) {
@@ -275,18 +275,6 @@ function renderSquares(
           onClick={() => onClick(square)}
         />,
       );
-      if (destinations.has(square)) {
-        squares.push(
-          <circle
-            key={square + "-dot"}
-            cx={displayFile * SIZE + SIZE / 2}
-            cy={displayRank * SIZE + SIZE / 2}
-            r={SIZE * 0.14}
-            className="move-dot"
-            onClick={() => onClick(square)}
-          />,
-        );
-      }
       if (selected === square && !markerBySquare.has(square)) {
         squares.push(
           <rect
@@ -319,19 +307,60 @@ function renderSquares(
   return squares;
 }
 
+/**
+ * Where the selected piece can go, drawn above the pieces so capture targets (and the
+ * king-takes-rook castling target) stay visible: a dot on an empty square, a ring around
+ * an occupied one. Purely visual - clicks pass through to the square underneath.
+ */
+function renderMoveHints(
+  orientation: "w" | "b",
+  destinations: Set<string>,
+  squares: Partial<Record<string, string>>,
+) {
+  return [...destinations].map((square) => {
+    const displayFile = orientation === "w" ? fileOf(square) : 7 - fileOf(square);
+    const displayRank = orientation === "w" ? 7 - rankOf(square) : rankOf(square);
+    const cx = displayFile * SIZE + SIZE / 2;
+    const cy = displayRank * SIZE + SIZE / 2;
+    return squares[square] ? (
+      <circle key={square + "-ring"} cx={cx} cy={cy} r={SIZE * 0.44} className="move-ring" />
+    ) : (
+      <circle key={square + "-dot"} cx={cx} cy={cy} r={SIZE * 0.15} className="move-dot" />
+    );
+  });
+}
+
+/** Coordinates printed inside the edge squares (rank numbers top-left of the left-hand
+ * file, file letters bottom-right of the bottom rank), in the opposite square color so
+ * they read on both - this keeps the whole SVG for the board instead of a margin. */
 function renderCoordinates(orientation: "w" | "b") {
-  const files = "abcdefgh".split("");
   const labels = [];
   for (let i = 0; i < 8; i++) {
     const file = orientation === "w" ? i : 7 - i;
+    const bottomRank = orientation === "w" ? 0 : 7;
+    const fileSquareLight = (file + bottomRank) % 2 === 1;
     labels.push(
-      <text key={"f" + i} x={i * SIZE + SIZE / 2} y={BOARD + 11} className="coord" textAnchor="middle">
-        {files[file]}
+      <text
+        key={"f" + i}
+        x={i * SIZE + SIZE - 6}
+        y={BOARD - 7}
+        textAnchor="end"
+        className={fileSquareLight ? "coord coord-on-light" : "coord coord-on-dark"}
+      >
+        {"abcdefgh"[file]}
       </text>,
     );
+
     const rank = orientation === "w" ? 7 - i : i;
+    const leftFile = orientation === "w" ? 0 : 7;
+    const rankSquareLight = (leftFile + rank) % 2 === 1;
     labels.push(
-      <text key={"r" + i} x={-9} y={i * SIZE + SIZE / 2} className="coord" textAnchor="middle">
+      <text
+        key={"r" + i}
+        x={6}
+        y={i * SIZE + 18}
+        className={rankSquareLight ? "coord coord-on-light" : "coord coord-on-dark"}
+      >
         {rank + 1}
       </text>,
     );

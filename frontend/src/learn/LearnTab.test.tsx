@@ -51,8 +51,9 @@ describe("LearnTab", () => {
       turn: "white",
       status: "IN_PROGRESS",
       winner: null,
+      lastMoveSan: null,
       overview: OVERVIEW,
-      evaluation: { bestMoveUci: "d2d4", scoreCentipawns: 20, mateInMoves: null, depth: 10 },
+      evaluation: { bestMoveUci: "d2d4", bestMoveSan: "d4", scoreCentipawns: 20, mateInMoves: null, depth: 10 },
     });
     vi.mocked(analyzeApi.playMove).mockResolvedValue({
       fen: "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b HAha - 0 1",
@@ -60,8 +61,9 @@ describe("LearnTab", () => {
       turn: "black",
       status: "IN_PROGRESS",
       winner: null,
+      lastMoveSan: "d4",
       overview: OVERVIEW,
-      evaluation: { bestMoveUci: null, scoreCentipawns: -15, mateInMoves: null, depth: 10 },
+      evaluation: { bestMoveUci: null, bestMoveSan: null, scoreCentipawns: -15, mateInMoves: null, depth: 10 },
     });
   });
 
@@ -132,7 +134,7 @@ describe("LearnTab", () => {
     // Submit grades it against Stockfish's line (d2-d4) and reveals both.
     fireEvent.click(submit);
     await waitFor(() => expect(analyzeApi.playMove).toHaveBeenCalledWith(FEN, "d2", "d4", undefined));
-    await screen.findByText(/Stockfish's top choice was d2-d4, not e2-e4/);
+    await screen.findByText(/Stockfish's top choice was d4\./);
     expect(isHighlighted("d2", "square-marker-correct")).toBe(true);
     expect(isHighlighted("d4", "square-marker-correct")).toBe(true);
     expect(isHighlighted("e2", "square-marker-incorrect")).toBe(true);

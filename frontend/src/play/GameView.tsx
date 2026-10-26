@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Chessboard } from "../board/Chessboard";
+import { BoardLayout } from "../layout/BoardLayout";
+import { ConfirmDialog } from "../layout/ConfirmDialog";
+import { MoveList } from "../layout/MoveList";
+import { PlayerBar } from "../layout/PlayerBar";
 import { ClockDisplay } from "./ClockDisplay";
 import { getGameInfo, joinGame } from "./api";
 import { getSeat, setSeat, type StoredSeat } from "./storage";
@@ -18,12 +22,16 @@ const STATUS_LABEL: Record<string, string> = {
   TIMEOUT: "Time out",
 };
 
+type Pending = "RESIGN" | "OFFER_DRAW" | null;
+
 export function GameView() {
   const { gameId = "" } = useParams<{ gameId: string }>();
   const navigate = useNavigate();
   const [seat, setSeatState] = useState<StoredSeat | null>(() => getSeat(gameId));
   const [joinError, setJoinError] = useState<string | null>(null);
   const [resolving, setResolving] = useState(!seat);
+  const [confirming, setConfirming] = useState<Pending>(null);
+  const [copied, setCopied] = useState(false);
   // POST /join claims a seat server-side - not idempotent. A plain "cancelled" flag set
   // from the effect's cleanup doesn't stop that request from actually firing, only from
   // applying its result, so under StrictMode's mount-effect double-invoke the first
@@ -72,119 +80,201 @@ export function GameView() {
     navigate(`/play/${newId}`);
   }, [socket.rematchStarted, navigate]);
 
-  if (!gameId) return null;
-  if (resolving) return <p className="status-text">Loading...</p>;
-  if (joinError) return <p className="error-text">{joinError}</p>;
-  if (!socket.state) return <p className="status-text">Connecting...</p>;
-
-  const { state } = socket;
+  const state = socket.state;
   const myColor = seat?.color ?? null;
   const isPlayer = myColor !== null;
+  const bottomColor = myColor ?? "white";
+  const topColor = bottomColor === "white" ? "black" : "white";
+
+  function bar(color: "white" | "black") {
+    const sideLabel = color === "white" ? "White" : "Black";
+    const name = !isPlayer ? sideLabel : color === myColor ? "You" : "Opponent";
+    const connected = state ? (color === "white" ? state.whiteConnected : state.blackConnected) : false;
+    const detail = isPlayer ? `${sideLabel}${connected ? "" : " · not connected"}` : connected ? "" : "not connected";
+    const ticking = state?.status === "IN_PROGRESS" && state.turn === color;
+    return (
+      <PlayerBar
+        color={color}
+        name={name}
+        detail={detail || undefined}
+        active={ticking}
+        trailing={
+          state && (
+            <ClockDisplay millis={color === "white" ? state.whiteMillis : state.blackMillis} isTicking={ticking} />
+          )
+        }
+      />
+    );
+  }
+
+  if (!gameId) return null;
+
+  if (resolving || joinError || !state) {
+    return (
+      <BoardLayout
+        top={bar(topColor)}
+        board={null}
+        bottom={bar(bottomColor)}
+        panel={
+          <div className="panel-section">
+            {joinError ? <p className="error-text">{joinError}</p> : <p className="panel-status">Connecting...</p>}
+          </div>
+        }
+      />
+    );
+  }
+
   const isMyTurn = isPlayer && state.turn === myColor;
   const gameOver = state.status !== "WAITING_FOR_OPPONENT" && state.status !== "IN_PROGRESS";
+  const opponentOfferedDraw = isPlayer && state.drawOfferBy !== null && state.drawOfferBy !== myColor;
+
+  let statusLine: string;
+  if (state.status === "WAITING_FOR_OPPONENT") statusLine = "Waiting for an opponent";
+  else if (gameOver) statusLine = STATUS_LABEL[state.status] ?? state.status;
+  else if (isPlayer) statusLine = isMyTurn ? "Your move" : "Opponent's move";
+  else statusLine = `${state.turn === "white" ? "White" : "Black"} to move`;
+
+  let resultLine: string | null = null;
+  if (gameOver) {
+    if (!state.winner) resultLine = "The game is drawn.";
+    else if (isPlayer) resultLine = state.winner === myColor ? "You won." : "You lost.";
+    else resultLine = `${state.winner === "white" ? "White" : "Black"} wins.`;
+  }
+
+  async function copyLink() {
+    await navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  function confirmPending() {
+    if (confirming === "RESIGN") socket.resign();
+    if (confirming === "OFFER_DRAW") socket.offerDraw();
+    setConfirming(null);
+  }
 
   return (
-    <div className="board-page">
-      <div className="board-page-board">
-        <Chessboard
-          fen={state.fen}
-          legalMoves={isMyTurn ? state.legalMoves : []}
-          orientation={myColor === "black" ? "b" : "w"}
-          onMove={(move) => socket.sendMove(move.from, move.to, move.promotion)}
-          animateEntry={state.moveHistory.length === 0}
-        />
-      </div>
-
-      <div className="board-page-panel">
-        <div className="panel-card clocks">
-          <ClockDisplay
-            label="Black"
-            millis={state.blackMillis}
-            isTicking={state.status === "IN_PROGRESS" && state.turn === "black"}
+    <>
+      <BoardLayout
+        top={bar(topColor)}
+        board={
+          <Chessboard
+            fen={state.fen}
+            legalMoves={isMyTurn ? state.legalMoves : []}
+            orientation={bottomColor === "black" ? "b" : "w"}
+            onMove={(move) => socket.sendMove(move.from, move.to, move.promotion)}
+            animateEntry={state.moveHistory.length === 0}
           />
-          <ClockDisplay
-            label="White"
-            millis={state.whiteMillis}
-            isTicking={state.status === "IN_PROGRESS" && state.turn === "white"}
-          />
-        </div>
+        }
+        bottom={bar(bottomColor)}
+        panel={
+          <>
+            <div className="panel-section">
+              <p className="panel-heading">Chess960 · Position #{state.startingNumber}</p>
+              <p className="panel-status">{statusLine}</p>
+              {resultLine && <p className="panel-note">{resultLine}</p>}
+              {socket.error && <p className="error-text">{socket.error}</p>}
 
-        {state.status === "WAITING_FOR_OPPONENT" && (
-          <div className="panel-card waiting-banner">
-            <p>Share this link with a friend:</p>
-            <div className="share-row">
-              <input
-                readOnly
-                value={window.location.href}
-                onFocus={(e) => e.currentTarget.select()}
-              />
-              <button
-                className="secondary-button"
-                onClick={() => navigator.clipboard.writeText(window.location.href)}
-              >
-                Copy
-              </button>
+              {state.status === "WAITING_FOR_OPPONENT" && (
+                <div className="invite">
+                  <p className="panel-note">Send this link to a friend. The game starts when they open it.</p>
+                  <div className="share-row">
+                    <input
+                      readOnly
+                      className="text-input"
+                      value={window.location.href}
+                      onFocus={(e) => e.currentTarget.select()}
+                      aria-label="Invite link"
+                    />
+                    <button className="secondary-button" onClick={copyLink}>
+                      {copied ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {opponentOfferedDraw && state.status === "IN_PROGRESS" && (
+                <div className="draw-offer">
+                  <p className="panel-note">Your opponent offers a draw.</p>
+                  <div className="button-row">
+                    <button className="primary-button" onClick={() => socket.respondDraw(true)}>
+                      Accept draw
+                    </button>
+                    <button className="secondary-button" onClick={() => socket.respondDraw(false)}>
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
 
-        {socket.error && <p className="error-text">{socket.error}</p>}
+            <div className="panel-section panel-section-grow">
+              <p className="panel-heading">Moves</p>
+              <MoveList moves={state.moveHistory} />
+            </div>
 
-        {gameOver && (
-          <p className="status-text status-over">
-            {STATUS_LABEL[state.status] ?? state.status}
-            {state.winner && ` — ${state.winner} wins`}
-          </p>
-        )}
-
-        {isPlayer && state.status === "IN_PROGRESS" && (
-          <div className="game-controls">
-            <button className="secondary-button" onClick={socket.resign}>
-              Resign
-            </button>
-            {state.drawOfferBy === myColor ? (
-              <span className="status-text">Draw offered...</span>
-            ) : state.drawOfferBy ? (
-              <>
-                <button className="secondary-button" onClick={() => socket.respondDraw(true)}>
-                  Accept draw
-                </button>
-                <button className="secondary-button" onClick={() => socket.respondDraw(false)}>
-                  Decline
-                </button>
-              </>
-            ) : (
-              <button className="secondary-button" onClick={socket.offerDraw}>
-                Offer draw
-              </button>
+            {isPlayer && state.status === "IN_PROGRESS" && (
+              <div className="panel-section">
+                <div className="button-row">
+                  <button
+                    className="secondary-button"
+                    disabled={state.drawOfferBy !== null}
+                    onClick={() => setConfirming("OFFER_DRAW")}
+                  >
+                    {state.drawOfferBy === myColor ? "Draw offered" : "Offer draw"}
+                  </button>
+                  <button className="secondary-button" onClick={() => setConfirming("RESIGN")}>
+                    Resign
+                  </button>
+                </div>
+              </div>
             )}
-          </div>
-        )}
 
-        {isPlayer && gameOver && (
-          <div className="game-controls">
-            {socket.rematchOfferedBy === myColor ? (
-              <span className="status-text">Rematch offered...</span>
-            ) : socket.rematchOfferedBy ? (
-              <button className="primary-button" onClick={socket.requestRematch}>
-                Accept rematch
-              </button>
-            ) : (
-              <button className="primary-button" onClick={socket.requestRematch}>
-                Rematch
-              </button>
+            {gameOver && (
+              <div className="panel-section">
+                <div className="button-row">
+                  {isPlayer && (
+                    <button
+                      className="primary-button"
+                      disabled={socket.rematchOfferedBy === myColor}
+                      onClick={socket.requestRematch}
+                    >
+                      {socket.rematchOfferedBy === myColor
+                        ? "Rematch offered"
+                        : socket.rematchOfferedBy
+                          ? "Accept rematch"
+                          : "Rematch"}
+                    </button>
+                  )}
+                  <button className="secondary-button" onClick={() => navigate("/play")}>
+                    New game
+                  </button>
+                </div>
+              </div>
             )}
-          </div>
-        )}
+          </>
+        }
+      />
 
-        {state.moveHistory.length > 0 && (
-          <ol className="move-history panel-card">
-            {state.moveHistory.map((m, i) => (
-              <li key={i}>{m}</li>
-            ))}
-          </ol>
-        )}
-      </div>
-    </div>
+      {confirming === "RESIGN" && (
+        <ConfirmDialog
+          title="Resign this game?"
+          message="Your opponent will be awarded the win. This can't be undone."
+          confirmLabel="Resign"
+          danger
+          onConfirm={confirmPending}
+          onCancel={() => setConfirming(null)}
+        />
+      )}
+      {confirming === "OFFER_DRAW" && (
+        <ConfirmDialog
+          title="Offer a draw?"
+          message="Your opponent can accept or decline. The offer lapses once the next move is played."
+          confirmLabel="Offer draw"
+          onConfirm={confirmPending}
+          onCancel={() => setConfirming(null)}
+        />
+      )}
+    </>
   );
 }

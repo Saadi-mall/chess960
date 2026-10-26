@@ -3,12 +3,11 @@ import { useEffect, useState } from "react";
 interface ClockDisplayProps {
   millis: number;
   isTicking: boolean;
-  label: string;
 }
 
 /** The server sends a snapshot of remaining time with each STATE message; this ticks it
  * down locally in between so the clock reads smoothly rather than jumping once a move. */
-export function ClockDisplay({ millis, isTicking, label }: ClockDisplayProps) {
+export function ClockDisplay({ millis, isTicking }: ClockDisplayProps) {
   const [displayMillis, setDisplayMillis] = useState(millis);
 
   useEffect(() => {
@@ -22,17 +21,16 @@ export function ClockDisplay({ millis, isTicking, label }: ClockDisplayProps) {
     return () => clearInterval(interval);
   }, [millis, isTicking]);
 
-  const totalSeconds = Math.ceil(displayMillis / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  const low = displayMillis < 30_000;
-
   return (
-    <div className={`clock${isTicking ? " clock-active" : ""}${low ? " clock-low" : ""}`}>
-      <span className="clock-label">{label}</span>
-      <span className="clock-time">
-        {minutes}:{String(seconds).padStart(2, "0")}
-      </span>
+    <div className={`clock${isTicking ? " clock-active" : ""}${displayMillis < 30_000 ? " clock-low" : ""}`}>
+      {formatClock(displayMillis)}
     </div>
   );
+}
+
+export function formatClock(millis: number): string {
+  const totalSeconds = Math.ceil(millis / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }

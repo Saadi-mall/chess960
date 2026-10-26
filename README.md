@@ -64,7 +64,7 @@ in `k8s/` for a cluster deployment.
 
 ## Running the tests
 
-Backend (76 tests - the rules engine's perft suite, castling edge cases, the position
+Backend (84 tests - the rules engine's perft suite, castling edge cases, SAN notation, the position
 analyzer, the game/clock/draw/rematch logic, the Stockfish UCI wrapper against the real
 binary, and the Chess.com import's classification logic):
 
