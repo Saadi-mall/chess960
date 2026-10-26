@@ -1,5 +1,9 @@
 # Deploying: Vercel + Render + Supabase (all free tiers)
 
+Currently live at **https://chess960-rho.vercel.app**, with the backend at
+`https://chess960-backend.onrender.com` (Render, Virginia) and the database on Supabase
+(us-east-1). Pushing to `main` redeploys both automatically.
+
 | Part | Host | Why there |
 | --- | --- | --- |
 | Frontend (the link you share) | Vercel | Static site; forwards `/api` to the backend so the login cookie stays first-party |

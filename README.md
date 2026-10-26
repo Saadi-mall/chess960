@@ -4,6 +4,9 @@ A Chess960 (Fischer Random) web app: play it live with a friend, set up any star
 position and analyze it with Stockfish, or work through a daily lesson - optionally with an
 account that keeps your streak and results.
 
+**Live: https://chess960-rho.vercel.app** (free hosting - the first visit after a quiet
+spell can take a minute while the backend wakes up).
+
 Built for a Chess.com take-home. See [docs/DECISIONS.md](docs/DECISIONS.md) for the main
 design decisions, trade-offs, time breakdown, and what's next; see
 [k8s/README.md](k8s/README.md) for running it on Kubernetes instead of Docker Compose, and
