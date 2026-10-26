@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Chessboard, type BoardArrow, type SquareMarker } from "../board/Chessboard";
 import { squaresFromFen } from "../board/fen";
 import type { LegalMove } from "../board/types";
@@ -49,6 +49,10 @@ export function LearnTab() {
   const [guesses, setGuesses] = useState<LegalMoveSan[]>([]);
   const [answered, setAnswered] = useState(false);
 
+  // Final answers, kept for the end of the lesson (signed-in learners send them to be graded).
+  const [pawnAnswer, setPawnAnswer] = useState<string | null>(null);
+  const [whiteAnswer, setWhiteAnswer] = useState<LegalMoveSan[]>([]);
+  const [blackAnswer, setBlackAnswer] = useState<LegalMoveSan[]>([]);
   const [weakestCorrect, setWeakestCorrect] = useState(false);
   const [whiteFound, setWhiteFound] = useState(0);
   const [blackFound, setBlackFound] = useState(0);
@@ -83,7 +87,12 @@ export function LearnTab() {
     if (!next) return;
     if (next === "PLANS" && lesson) {
       nav.first();
-      progress.record({ date: lesson.date, weakestPawnCorrect: weakestCorrect, whiteFound, blackFound });
+      const asGuess = (m: LegalMoveSan) => ({ from: m.from, to: m.to, promotion: m.promotion });
+      void progress.record({
+        weakestPawn: pawnAnswer,
+        whiteGuesses: whiteAnswer.map(asGuess),
+        blackGuesses: blackAnswer.map(asGuess),
+      });
     }
     setStep(next);
   }
@@ -102,6 +111,7 @@ export function LearnTab() {
   function submitWeakestPawn() {
     if (!lesson || !pickedSquare) return;
     setWeakestCorrect(lesson.weakestPawn.answers.includes(pickedSquare));
+    setPawnAnswer(pickedSquare);
     setAnswered(true);
   }
 
@@ -115,8 +125,13 @@ export function LearnTab() {
   function submitGuesses() {
     if (!quiz) return;
     const found = guesses.filter((g) => quiz.bestMoves.some((b) => sameMove(b, g))).length;
-    if (step === "WHITE_MOVES") setWhiteFound(found);
-    else setBlackFound(found);
+    if (step === "WHITE_MOVES") {
+      setWhiteFound(found);
+      setWhiteAnswer(guesses);
+    } else {
+      setBlackFound(found);
+      setBlackAnswer(guesses);
+    }
     setAnswered(true);
   }
 
@@ -389,6 +404,22 @@ export function LearnTab() {
           <span>White's best moves: {whiteFound}/3</span>
           <span>Black's best replies: {blackFound}/3</span>
         </div>
+        {progress.signedIn ? (
+          <p className="side-text muted">
+            {progress.saved === "yes"
+              ? "Saved to your account."
+              : progress.saved === "failed"
+                ? "Couldn't save this to your account."
+                : "Saving..."}
+          </p>
+        ) : (
+          <p className="side-text muted">
+            <Link to="/login" state={{ from: "/learn" }}>
+              Log in
+            </Link>{" "}
+            to keep your streak and results on every device.
+          </p>
+        )}
       </>
     );
     action = (

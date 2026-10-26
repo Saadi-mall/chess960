@@ -60,11 +60,3 @@ export interface Lesson {
   mainLineFens: string[];
   plans: Plan[];
 }
-
-/** How the learner did - recorded when they reach the end of the lesson. */
-export interface LessonResult {
-  date: string;
-  weakestPawnCorrect: boolean;
-  whiteFound: number;
-  blackFound: number;
-}
