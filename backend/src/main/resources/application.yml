@@ -19,6 +19,10 @@ chess960:
   # On Debian/Ubuntu (the container image) apt installs it to /usr/games, which isn't
   # on PATH; local dev (Homebrew, etc.) usually just has it on PATH as "stockfish".
   stockfish-path: ${STOCKFISH_PATH:stockfish}
+  auth:
+    # Marks the session cookie Secure (HTTPS only). Off by default because local dev and
+    # the demo Kubernetes setup serve plain HTTP; turn it on wherever TLS is in front.
+    secure-cookie: ${SECURE_COOKIE:false}
 
 management:
   endpoints:

@@ -92,4 +92,17 @@ class LessonBuilderTest {
         assertEquals(List.of("e5", "g6"), lesson.plans().get(1).moves());
         assertEquals(new Arrow("d1", "e3", "white"), lesson.plans().get(0).arrows().get(1));
     }
+
+    @Test
+    void gradesAnswersOnTheServerCountingEachBestMoveOnce() {
+        var white = List.of(
+                new LessonGrader.Guess("e2", "e4", null),
+                new LessonGrader.Guess("e2", "e4", null),
+                new LessonGrader.Guess("a2", "a3", null));
+        var black = List.of(new LessonGrader.Guess("d8", "e6", null));
+
+        LessonGrader.Grade grade = LessonGrader.grade(lesson, new LessonGrader.Answers("e2", white, black));
+        assertEquals(new LessonGrader.Grade(true, 1, 1), grade);
+        assertEquals(false, LessonGrader.grade(lesson, new LessonGrader.Answers("a2", List.of(), null)).weakestPawnCorrect());
+    }
 }
