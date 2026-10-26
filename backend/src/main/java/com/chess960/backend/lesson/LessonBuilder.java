@@ -82,6 +82,7 @@ public final class LessonBuilder {
                 mainLineText(startFen, mainLineUci),
                 mainLine.moves(),
                 mainLine.fens(),
+                mainLine.squares(),
                 plans(startFen, mainLineUci));
     }
 
@@ -299,21 +300,23 @@ public final class LessonBuilder {
                 .toList();
     }
 
-    private record MainLine(List<String> moves, List<String> fens) {}
+    private record MainLine(List<String> moves, List<String> fens, List<Arrow> squares) {}
 
     private static MainLine replay(String startFen, List<String> uciLine) {
         Position position = Fen.parse(startFen);
         List<String> moves = new ArrayList<>();
         List<String> fens = new ArrayList<>(List.of(startFen));
+        List<Arrow> squares = new ArrayList<>();
         for (String uci : uciLine) {
             if (moves.size() == MAIN_LINE_PLIES) break;
             Optional<Move> move = find(position, uci);
             if (move.isEmpty()) break;
             moves.add(San.of(position, move.get()));
+            squares.add(new Arrow(alg(move.get().from()), alg(landingSquare(move.get())), "last"));
             position.makeMove(move.get());
             fens.add(Fen.toShredderFen(position));
         }
-        return new MainLine(moves, fens);
+        return new MainLine(moves, fens, squares);
     }
 
     private static String mainLineText(String startFen, List<String> uciLine) {

@@ -215,6 +215,12 @@ export function LearnTab() {
           onMove={handleGuess}
           arrows={arrows}
           disabled={answered}
+          lastMove={
+            // Black's quiz starts after White's best move - show which move that was.
+            step === "BLACK_MOVES" && lesson.whiteMoves.bestMoves[0]
+              ? { from: lesson.whiteMoves.bestMoves[0].from, to: lesson.whiteMoves.bestMoves[0].arrowTo }
+              : null
+          }
         />
       );
     } else {
@@ -229,6 +235,7 @@ export function LearnTab() {
           legalMoves={[]}
           orientation={orientation}
           arrows={arrows}
+          lastMove={nav.ply > 0 ? lesson.mainLineSquares[nav.ply - 1] : null}
           disabled
         />
       );

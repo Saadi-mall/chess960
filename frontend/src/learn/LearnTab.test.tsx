@@ -41,6 +41,10 @@ const LESSON: Lesson = {
   mainLine: "1. e4 e5",
   mainLineMoves: ["e4", "e5"],
   mainLineFens: [FEN, FEN, FEN],
+  mainLineSquares: [
+    { from: "e2", to: "e4" },
+    { from: "e7", to: "e5" },
+  ],
   plans: [],
 };
 

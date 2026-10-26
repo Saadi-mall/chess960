@@ -49,4 +49,6 @@ export interface PositionState {
 /** One position in the Analyze tab's line; evaluation is null until Stockfish answers. */
 export interface AnalyzedPosition extends PositionState {
   evaluation: Evaluation | null;
+  /** The move that led here (null for the start), for the last-move highlight. */
+  lastMove?: { from: string; to: string } | null;
 }

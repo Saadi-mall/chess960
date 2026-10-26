@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { fetchMe, login, logout, register, type User } from "./api";
+import { fetchMe, login, logout, register, verifyEmail, type User } from "./api";
 import { AuthContext } from "./authContext";
 
 /** Who's signed in. The session itself is an HttpOnly cookie, so the page only ever asks
@@ -16,8 +16,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     loading,
     signIn: async (email: string, password: string) => setUser(await login(email, password)),
-    signUp: async (email: string, password: string, displayName: string) =>
-      setUser(await register(email, password, displayName)),
+    signUp: (email: string, password: string, displayName: string) => register(email, password, displayName),
+    verifyEmail: async (token: string) => setUser(await verifyEmail(token)),
     signOut: async () => {
       await logout();
       setUser(null);

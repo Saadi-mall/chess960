@@ -56,6 +56,17 @@ Free-tier limits to know about:
    WebSockets connect straight to Render, since Vercel can't proxy them).
 4. Deploy. Your shareable links are `https://<project>.vercel.app/play/<game id>`.
 
+## 4. Email (sign-up verification)
+
+New accounts must confirm their email, sent through [Brevo](https://www.brevo.com) (free
+plan: 300 emails/day). Until it's set up, the live site refuses sign-ups.
+
+1. Create a Brevo account, then **Senders, Domains & Dedicated IPs → Senders** and add
+   and verify the address emails should come from.
+2. **SMTP & API → API Keys → Generate a new API key**.
+3. On Render, `chess960-backend` → **Environment**, add `BREVO_API_KEY` (the key) and
+   `MAIL_FROM_ADDRESS` (the verified sender), then save and redeploy.
+
 If you later add a custom domain, add it to `ALLOWED_ORIGINS` on Render
 (comma-separated, e.g. `https://*.vercel.app,https://chess960.example.com`).
 

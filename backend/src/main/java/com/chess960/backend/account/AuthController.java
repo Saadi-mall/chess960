@@ -35,9 +35,21 @@ public class AuthController {
      * "who am I" check on every load doesn't log an error for every guest. */
     public record MeResponse(UserDto user) {}
 
+    public record VerifyRequest(String token) {}
+
+    /** A sign-up waiting for its email link - nothing to sign in with yet. */
+    public record PendingResponse(String email) {}
+
     @PostMapping("/api/auth/register")
-    public ResponseEntity<MeResponse> register(@RequestBody RegisterRequest request) {
-        AuthService.NewSession session = auth.register(request.email(), request.password(), request.displayName());
+    public ResponseEntity<PendingResponse> register(@RequestBody RegisterRequest request) {
+        auth.register(request.email(), request.password(), request.displayName());
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(new PendingResponse(request.email().trim().toLowerCase(java.util.Locale.ROOT)));
+    }
+
+    @PostMapping("/api/auth/verify-email")
+    public ResponseEntity<MeResponse> verifyEmail(@RequestBody VerifyRequest request) {
+        AuthService.NewSession session = auth.verifyEmail(request.token());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .header(HttpHeaders.SET_COOKIE, cookies.create(session.token()).toString())
                 .body(new MeResponse(UserDto.of(session.user())));

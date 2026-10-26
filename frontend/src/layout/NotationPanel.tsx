@@ -67,6 +67,30 @@ export function NotationPanel({ moves, nav, onFlip, actions }: NotationPanelProp
     );
   }
 
+  // Arrow keys step through the moves like the buttons: left/right one move, up/down (or
+  // Home/End) to the start/end. Ignored while typing in a form field.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))) return;
+      const actions: Record<string, () => void> = {
+        ArrowLeft: nav.prev,
+        ArrowRight: nav.next,
+        ArrowUp: nav.first,
+        Home: nav.first,
+        ArrowDown: nav.last,
+        End: nav.last,
+      };
+      const action = actions[e.key];
+      if (!action) return;
+      e.preventDefault();
+      action();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [nav]);
+
   const progress = moves.length === 0 ? 0 : (nav.ply / moves.length) * 100;
 
   return (
@@ -93,10 +117,10 @@ export function NotationPanel({ moves, nav, onFlip, actions }: NotationPanelProp
 
       <div className="nav-row">
         <div className="nav-group">
-          <button type="button" aria-label="First move" onClick={nav.first} disabled={nav.ply === 0}>
+          <button type="button" aria-label="First move" title="First move (Up)" onClick={nav.first} disabled={nav.ply === 0}>
             <FirstIcon />
           </button>
-          <button type="button" aria-label="Previous move" onClick={nav.prev} disabled={nav.ply === 0}>
+          <button type="button" aria-label="Previous move" title="Previous move (Left)" onClick={nav.prev} disabled={nav.ply === 0}>
             <PrevIcon />
           </button>
           <button
@@ -107,10 +131,10 @@ export function NotationPanel({ moves, nav, onFlip, actions }: NotationPanelProp
           >
             {nav.playing ? <PauseIcon /> : <PlayIcon />}
           </button>
-          <button type="button" aria-label="Next move" onClick={nav.next} disabled={nav.isLatest}>
+          <button type="button" aria-label="Next move" title="Next move (Right)" onClick={nav.next} disabled={nav.isLatest}>
             <NextIcon />
           </button>
-          <button type="button" aria-label="Last move" onClick={nav.last} disabled={nav.isLatest}>
+          <button type="button" aria-label="Last move" title="Last move (Down)" onClick={nav.last} disabled={nav.isLatest}>
             <LastIcon />
           </button>
         </div>

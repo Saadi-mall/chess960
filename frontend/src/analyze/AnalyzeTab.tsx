@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Chessboard } from "../board/Chessboard";
 import type { LegalMove } from "../board/types";
 import { ChessPage, IdentityCard, SideCard } from "../layout/ChessPage";
@@ -10,10 +11,11 @@ import { useHistoryNav } from "../layout/useHistoryNav";
 import { PositionDetail, PositionModeControl } from "../positions/PositionPicker";
 import type { PositionMode } from "../positions/previewApi";
 import { useStartingPreview } from "../positions/useStartingPreview";
-import { applyMove, evaluatePosition, fetchStartingPosition } from "./api";
+import { applyMove, evaluatePosition, fetchStartingPosition, replayMoves } from "./api";
 import { EvaluationBar } from "./EvaluationBar";
 import { OverviewCard } from "./OverviewCard";
 import type { AnalyzedPosition, Overview } from "./types";
+import { parseMoveList } from "./link";
 import "./Analyze.css";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -24,6 +26,10 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export function AnalyzeTab() {
+  // A finished game opens here as /analyze?position=<n>&moves=<from><to>,...
+  const [searchParams, setSearchParams] = useSearchParams();
+  const gamePosition = searchParams.get("position");
+  const gameMoves = searchParams.get("moves") ?? "";
   const [positionMode, setPositionMode] = useState<PositionMode>("RANDOM");
   const [number, setNumber] = useState(518);
   const [shuffleKey, setShuffleKey] = useState(0);
@@ -33,7 +39,10 @@ export function AnalyzeTab() {
   const [history, setHistory] = useState<AnalyzedPosition[]>([]);
   const [moves, setMoves] = useState<string[]>([]);
   const [flipped, setFlipped] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(gamePosition !== null);
+  const [fromGame, setFromGame] = useState(false);
+  // Which positions Stockfish has already been asked about, so each is evaluated once.
+  const requested = useRef(new Set<string>());
   // True only while the (fast) rules request for a move is in flight.
   const [moving, setMoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +52,56 @@ export function AnalyzeTab() {
   const analyzing = history.length > 0 && overview !== null;
   const latest = history[history.length - 1];
   const viewed = history[nav.ply] ?? latest;
+
+  function requestEvaluation(index: number, fen: string) {
+    const key = `${index}:${fen}`;
+    if (requested.current.has(key)) return;
+    requested.current.add(key);
+    evaluatePosition(fen).then(
+      (result) =>
+        setHistory((h) =>
+          // Skip it if that position was undone (and maybe replaced) while Stockfish was thinking.
+          h.map((p, i) => (i === index && p.fen === fen ? { ...p, evaluation: result.evaluation } : p)),
+        ),
+      () => {
+        requested.current.delete(key);
+        setError("Stockfish couldn't evaluate that position");
+      },
+    );
+  }
+
+  // A replayed game arrives without evaluations; evaluate whichever position is on screen.
+  useEffect(() => {
+    if (history.length > 0 && viewed && viewed.evaluation === null) requestEvaluation(nav.ply, viewed.fen);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [history.length, nav.ply, viewed?.fen, viewed?.evaluation]);
+
+  const loadedLink = useRef<string | null>(null);
+  useEffect(() => {
+    const link = `${gamePosition}|${gameMoves}`;
+    if (gamePosition === null || loadedLink.current === link) return;
+    loadedLink.current = link;
+    const number = Number(gamePosition);
+    const line = parseMoveList(gameMoves);
+    (async () => {
+      try {
+        const start = await fetchStartingPosition(number);
+        const positions = line.length > 0 ? await replayMoves(start.fen, line) : [];
+        requested.current.clear();
+        setOverview(start.overview);
+        setHistory([
+          start,
+          ...positions.map((p, i) => ({ ...p, evaluation: null, lastMove: { from: line[i].from, to: line[i].to } })),
+        ]);
+        setMoves(positions.map((p) => p.lastMoveSan ?? "?"));
+        setFromGame(true);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not load that game");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [gamePosition, gameMoves]);
 
   async function loadPosition() {
     if (resolvedNumber === null) return;
@@ -72,16 +131,9 @@ export function AnalyzeTab() {
     try {
       const next = await applyMove(latest.fen, move.from, move.to, move.promotion);
       const index = history.length;
-      setHistory((h) => [...h, { ...next, evaluation: null }]);
+      setHistory((h) => [...h, { ...next, evaluation: null, lastMove: { from: move.from, to: move.to } }]);
       setMoves((m) => [...m, next.lastMoveSan ?? `${move.from}-${move.to}`]);
-      evaluatePosition(next.fen).then(
-        (result) =>
-          setHistory((h) =>
-            // Skip it if that move was undone (and maybe replaced) while Stockfish was thinking.
-            h.map((p, i) => (i === index && p.fen === next.fen ? { ...p, evaluation: result.evaluation } : p)),
-          ),
-        () => setError("Stockfish couldn't evaluate that position"),
-      );
+      requestEvaluation(index, next.fen);
     } catch (e) {
       setError(e instanceof Error ? e.message : "That move was rejected");
     } finally {
@@ -98,6 +150,9 @@ export function AnalyzeTab() {
     setHistory([]);
     setOverview(null);
     setMoves([]);
+    setFromGame(false);
+    requested.current.clear();
+    if (gamePosition !== null) setSearchParams({});
   }
 
   const turn = viewed?.turn ?? "white";
@@ -133,6 +188,22 @@ export function AnalyzeTab() {
       }
     />
   );
+
+  if (loading && gamePosition !== null && !analyzing) {
+    return (
+      <ChessPage
+        title="Analyze your game"
+        subtitle="Loading the game"
+        left={
+          <IdentityCard initial="#" tone="accent" title={`Position #${gamePosition}`} detail="Replaying the moves..." />
+        }
+        top={bar(topColor)}
+        board={null}
+        bottom={bar(bottomColor)}
+        right={notation}
+      />
+    );
+  }
 
   if (!analyzing || !viewed || !overview) {
     return (
@@ -178,8 +249,12 @@ export function AnalyzeTab() {
 
   return (
     <ChessPage
-      title="Analyze a position"
-      subtitle={`Position #${overview.positionNumber ?? "?"} · Stockfish evaluates every position`}
+      title={fromGame ? "Analyze your game" : "Analyze a position"}
+      subtitle={
+        fromGame
+          ? `Position #${overview.positionNumber ?? "?"} · ${moves.length} moves · step through with the arrow keys`
+          : `Position #${overview.positionNumber ?? "?"} · Stockfish evaluates every position`
+      }
       left={
         <>
           <IdentityCard
@@ -220,6 +295,7 @@ export function AnalyzeTab() {
           onMove={handleMove}
           animateEntry={moves.length === 0}
           disabled={!nav.isLatest}
+          lastMove={viewed.lastMove ?? null}
         />
       }
       bottom={bar(bottomColor)}

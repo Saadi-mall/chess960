@@ -7,7 +7,9 @@ export interface AuthValue {
   /** True until the first "who am I" check has answered. */
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, displayName: string) => Promise<void>;
+  /** Resolves with the address the confirmation link was sent to; no account exists yet. */
+  signUp: (email: string, password: string, displayName: string) => Promise<string>;
+  verifyEmail: (token: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -16,7 +18,8 @@ export const AuthContext = createContext<AuthValue>({
   user: null,
   loading: false,
   signIn: async () => {},
-  signUp: async () => {},
+  signUp: async () => "",
+  verifyEmail: async () => {},
   signOut: async () => {},
 });
 

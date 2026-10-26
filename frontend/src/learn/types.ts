@@ -58,5 +58,7 @@ export interface Lesson {
   mainLine: string;
   mainLineMoves: string[];
   mainLineFens: string[];
+  /** Each main-line move's from/to squares, for the last-move highlight. */
+  mainLineSquares: Array<{ from: string; to: string }>;
   plans: Plan[];
 }

@@ -8,6 +8,8 @@ import java.util.List;
  * @param moveHistory every move so far, in SAN
  * @param fenHistory the starting FEN, then the FEN after each move (one longer than
  *     moveHistory), so the client can show any earlier position
+ * @param moves the same moves as moveHistory in the board's from/to encoding (castling as
+ *     king-to-rook-square), for highlighting the last move and replaying the game
  */
 public record GameStateMessage(
         String type,
@@ -24,6 +26,7 @@ public record GameStateMessage(
         long blackMillis,
         List<String> moveHistory,
         List<String> fenHistory,
+        List<MoveDto> moves,
         boolean whiteConnected,
         boolean blackConnected) {
 

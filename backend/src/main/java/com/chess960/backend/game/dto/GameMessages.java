@@ -34,6 +34,7 @@ public final class GameMessages {
                 game.remainingMillis(Color.BLACK),
                 game.moveHistory(),
                 game.fenHistory(),
+                game.playedMoves().stream().map(GameMessages::toMoveDto).toList(),
                 game.isConnected(Color.WHITE),
                 game.isConnected(Color.BLACK));
     }

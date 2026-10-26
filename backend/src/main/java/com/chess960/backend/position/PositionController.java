@@ -3,6 +3,7 @@ package com.chess960.backend.position;
 import com.chess960.backend.game.DailyPosition;
 import com.chess960.backend.rules.Chess960StartingPosition;
 import java.time.LocalDate;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +26,13 @@ public class PositionController {
     @PostMapping("/api/positions/legal-moves")
     public PositionStateResponse legalMoves(@RequestBody FenRequest request) {
         return positionService.legalMovesFor(request.fen());
+    }
+
+    public record ReplayRequest(String fen, List<MoveDto> moves) {}
+
+    @PostMapping("/api/positions/replay")
+    public List<PositionStateResponse> replay(@RequestBody ReplayRequest request) {
+        return positionService.replay(request.fen(), request.moves() == null ? List.of() : request.moves());
     }
 
     @PostMapping("/api/positions/move")

@@ -97,3 +97,22 @@
 .account-menu a {
   text-decoration: none;
 }
+
+.account-sent h2 {
+  margin: 0 0 var(--space-3);
+}
+
+.account-sent p {
+  margin: 0 0 var(--space-3);
+  line-height: 1.5;
+}
+
+.link-button {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--color-accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}

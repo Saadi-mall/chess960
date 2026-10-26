@@ -17,6 +17,8 @@ export function AccountPage() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // After sign-up: the address the confirmation link went to.
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   if (user) return <Navigate to={returnTo} replace />;
@@ -26,9 +28,12 @@ export function AccountPage() {
     setBusy(true);
     setError(null);
     try {
-      if (mode === "login") await signIn(email, password);
-      else await signUp(email, password, displayName);
-      navigate(returnTo, { replace: true });
+      if (mode === "login") {
+        await signIn(email, password);
+        navigate(returnTo, { replace: true });
+      } else {
+        setSentTo(await signUp(email, password, displayName));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -46,6 +51,23 @@ export function AccountPage() {
       </div>
 
       <div className="page-card-simple account-card">
+        {sentTo ? (
+          <div className="account-sent">
+            <h2>Check your email</h2>
+            <p>
+              We sent a confirmation link to <strong>{sentTo}</strong>. Open it to create your account -
+              it works once and expires in 24 hours.
+            </p>
+            <p className="muted">
+              Nothing there? Check your spam folder, or{" "}
+              <button type="button" className="link-button" onClick={() => setSentTo(null)}>
+                sign up again
+              </button>{" "}
+              to get a new link.
+            </p>
+          </div>
+        ) : (
+        <>
         <SegmentedControl
           aria-label="Log in or sign up"
           options={[
@@ -101,7 +123,12 @@ export function AccountPage() {
           <button className="big-button" type="submit" disabled={busy}>
             {busy ? "Please wait..." : mode === "login" ? "Log in" : "Create account"}
           </button>
+          {mode === "signup" && (
+            <small className="muted">We'll email you a link to confirm the address before the account is created.</small>
+          )}
         </form>
+        </>
+        )}
       </div>
     </div>
   );

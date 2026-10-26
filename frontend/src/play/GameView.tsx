@@ -12,6 +12,7 @@ import { ClockDisplay } from "./ClockDisplay";
 import { getGameInfo, joinGame } from "./api";
 import { getSeat, setSeat, type StoredSeat } from "./storage";
 import { useGameSocket } from "./useGameSocket";
+import { analysisLink } from "../analyze/link";
 
 const STATUS_LABEL: Record<string, string> = {
   CHECKMATE: "Checkmate",
@@ -267,6 +268,14 @@ export function GameView() {
               </button>
             )}
             {gameOver && (
+              <button
+                className="big-button big-button-secondary"
+                onClick={() => navigate(analysisLink(state.startingNumber, state.moves))}
+              >
+                Analyze this game
+              </button>
+            )}
+            {gameOver && (
               <button className="big-button big-button-secondary" onClick={() => navigate("/play")}>
                 New game
               </button>
@@ -283,6 +292,7 @@ export function GameView() {
             onMove={(move) => socket.sendMove(move.from, move.to, move.promotion)}
             animateEntry={state.moveHistory.length === 0}
             disabled={!nav.isLatest}
+            lastMove={nav.ply > 0 ? state.moves[nav.ply - 1] : null}
           />
         }
         bottom={bar(bottomColor)}

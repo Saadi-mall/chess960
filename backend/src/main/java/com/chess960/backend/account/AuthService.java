@@ -11,6 +11,7 @@ import java.util.HexFormat;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Pattern;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -26,6 +27,9 @@ import org.springframework.stereotype.Service;
 public class AuthService {
 
     static final Duration SESSION_LENGTH = Duration.ofDays(30);
+    static final Duration VERIFICATION_LENGTH = Duration.ofHours(24);
+    /** A repeat sign-up for the same email within this window doesn't send another email. */
+    static final Duration RESEND_COOLDOWN = Duration.ofMinutes(1);
     private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
     private static final int MIN_PASSWORD_LENGTH = 8;
     /** BCrypt only looks at the first 72 bytes; longer passwords would be silently truncated. */
@@ -33,21 +37,38 @@ public class AuthService {
 
     private final UserRepository users;
     private final SessionRepository sessions;
+    private final PendingSignupRepository pending;
+    private final EmailSender email;
+    private final String appBaseUrl;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
     private final SecureRandom random = new SecureRandom();
     /** Checked against when an email isn't registered, so a login takes as long either way
      * and its timing doesn't reveal which emails have accounts. */
     private final String unknownUserHash = encoder.encode("no-such-user");
 
-    public AuthService(UserRepository users, SessionRepository sessions) {
+    public AuthService(
+            UserRepository users,
+            SessionRepository sessions,
+            PendingSignupRepository pending,
+            EmailSender email,
+            @Value("${chess960.app-base-url:http://localhost:5173}") String appBaseUrl) {
         this.users = users;
         this.sessions = sessions;
+        this.pending = pending;
+        this.email = email;
+        this.appBaseUrl = appBaseUrl.replaceAll("/+$", "");
     }
 
     public record NewSession(UserEntity user, String token) {}
 
-    public NewSession register(String email, String password, String displayName) {
-        String normalizedEmail = normalize(email);
+    /**
+     * Starts a sign-up: nothing can sign in yet. The details (password already hashed) wait
+     * in pending_signups and a one-time link is emailed; the account is only created when
+     * that link is opened ({@link #verifyEmail}). Signing up again replaces any earlier
+     * pending sign-up for the same email.
+     */
+    public void register(String emailAddress, String password, String displayName) {
+        String normalizedEmail = normalize(emailAddress);
         if (!EMAIL.matcher(normalizedEmail).matches() || normalizedEmail.length() > 254) {
             throw new AccountException(HttpStatus.BAD_REQUEST, "Enter a valid email address");
         }
@@ -64,12 +85,45 @@ public class AuthService {
         if (users.findByEmail(normalizedEmail).isPresent()) {
             throw new AccountException(HttpStatus.CONFLICT, "An account with that email already exists");
         }
+        if (!email.available()) {
+            throw new AccountException(HttpStatus.SERVICE_UNAVAILABLE, "Sign-up is unavailable right now");
+        }
+        // Don't let repeated submissions turn this into a way to flood someone's inbox.
+        boolean justSent = pending.findByEmail(normalizedEmail).stream()
+                .anyMatch(p -> p.createdAt().isAfter(Instant.now().minus(RESEND_COOLDOWN)));
+        if (justSent) return;
+
+        pending.deleteByEmail(normalizedEmail);
+        String token = randomToken();
+        pending.save(new PendingSignupEntity(
+                hash(token), normalizedEmail, name, encoder.encode(password), Instant.now().plus(VERIFICATION_LENGTH)));
+        email.send(
+                normalizedEmail,
+                "Confirm your Chess960 account",
+                "Hi " + name + ",\n\n"
+                        + "Open this link to confirm your email and create your Chess960 account:\n\n"
+                        + appBaseUrl + "/verify-email?token=" + token + "\n\n"
+                        + "The link works once and expires in 24 hours. If you didn't sign up, ignore this email"
+                        + " - no account is created without it.");
+    }
+
+    /** Opens an emailed sign-up link: creates the account and signs it in. */
+    public NewSession verifyEmail(String token) {
+        PendingSignupEntity signup = token == null
+                ? null
+                : pending.findById(hash(token)).filter(p -> !p.isExpired()).orElse(null);
+        if (signup == null) {
+            throw new AccountException(HttpStatus.BAD_REQUEST, "This link has expired or was already used - sign up again");
+        }
+        pending.deleteByEmail(signup.email());
+        if (users.findByEmail(signup.email()).isPresent()) {
+            throw new AccountException(HttpStatus.CONFLICT, "That email is already confirmed - log in instead");
+        }
         try {
-            UserEntity user = users.save(new UserEntity(normalizedEmail, name, encoder.encode(password)));
+            UserEntity user = users.save(new UserEntity(signup.email(), signup.displayName(), signup.passwordHash()));
             return new NewSession(user, startSession(user));
         } catch (DataIntegrityViolationException e) {
-            // Two sign-ups with the same email at once - the unique constraint catches the second.
-            throw new AccountException(HttpStatus.CONFLICT, "An account with that email already exists");
+            throw new AccountException(HttpStatus.CONFLICT, "That email is already confirmed - log in instead");
         }
     }
 
@@ -95,16 +149,22 @@ public class AuthService {
     }
 
     @Scheduled(fixedRate = 60 * 60 * 1000)
-    void deleteExpiredSessions() {
+    void deleteExpired() {
         sessions.deleteExpired(Instant.now());
+        pending.deleteExpired(Instant.now());
     }
 
     private String startSession(UserEntity user) {
-        byte[] bytes = new byte[32];
-        random.nextBytes(bytes);
-        String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        String token = randomToken();
         sessions.save(new SessionEntity(hash(token), user.id(), Instant.now().plus(SESSION_LENGTH)));
         return token;
+    }
+
+    /** 32 random bytes, base64url - used for both session tokens and email links. */
+    private String randomToken() {
+        byte[] bytes = new byte[32];
+        random.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     static String hash(String token) {

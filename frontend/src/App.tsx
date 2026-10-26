@@ -3,6 +3,7 @@ import { AccountPage } from "./account/AccountPage";
 import { useAuth } from "./account/authContext";
 import { AuthProvider } from "./account/AuthProvider";
 import { ProgressPage } from "./account/ProgressPage";
+import { VerifyEmailPage } from "./account/VerifyEmailPage";
 import { AnalyzeTab } from "./analyze/AnalyzeTab";
 import { ChessComImportPage } from "./chesscom/ChessComImportPage";
 import { LearnTab } from "./learn/LearnTab";
@@ -49,7 +50,12 @@ const TABS = [
   { path: "/chesscom-import", label: "Chess.com stats" },
 ];
 
-const PAGE_NAMES: Record<string, string> = { "/login": "Log in", "/signup": "Sign up", "/progress": "Progress" };
+const PAGE_NAMES: Record<string, string> = {
+  "/login": "Log in",
+  "/signup": "Sign up",
+  "/progress": "Progress",
+  "/verify-email": "Confirm email",
+};
 
 function App() {
   const { pathname } = useLocation();
@@ -99,6 +105,7 @@ function App() {
               <Route path="/login" element={<AccountPage key="login" />} />
               <Route path="/signup" element={<AccountPage key="signup" />} />
               <Route path="/progress" element={<ProgressPage />} />
+              <Route path="/verify-email" element={<VerifyEmailPage />} />
             </Routes>
           </main>
         </div>

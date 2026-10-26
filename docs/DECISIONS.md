@@ -177,6 +177,22 @@ today's lesson, so a streak can't be faked or backfilled from the browser. Strea
 computed from the stored dates (`Streaks`); a streak ending yesterday still counts until
 today's lesson is missed. Guests keep the old per-browser streak.
 
+**Accounts only exist once their email is confirmed.** Signing up stores a *pending*
+sign-up (password already BCrypt-hashed) and emails a one-time link; the `users` row is
+only created when that link is opened, so an address nobody controls never becomes an
+account. Like sessions, only the SHA-256 of the link's token is stored; links expire after
+24 hours, and repeat sign-ups within a minute don't send another email (so the form can't
+be used to flood someone's inbox). Email goes out through Brevo's HTTP API rather than
+SMTP, since free hosts often block outgoing mail ports. With no email configured, local
+development logs the link instead, and production refuses sign-ups rather than ever
+writing a working link into its logs.
+
+**Finished games can be analyzed.** The game state now carries each move in from/to form
+as well as SAN. "Analyze this game" opens `/analyze?position=<n>&moves=e2e4,e7e5,...` -
+a link that survives a refresh and can be shared - and Analyze replays it with one
+`/api/positions/replay` request, then asks Stockfish only about the positions actually
+looked at, so a long game doesn't trigger dozens of searches up front.
+
 **The analysis board doesn't wait for Stockfish.** A move in Analyze makes two requests: the rules-only `/api/positions/move` (~30ms) whose
 position goes on the board immediately, then `/api/analysis/evaluate` in the background,
 whose result is filled in when it arrives (and dropped if that move was undone meanwhile).
@@ -300,7 +316,7 @@ decorative:
   starting position. The plan: store finished games here (see "Persist finished games"),
   list the ones from today's lesson position, and match a signed-in user's own Chess.com
   960 games by their `SetUp`/`FEN` PGN headers.
-- **Account hardening**: rate-limit log-in attempts, email verification, password reset,
+- **Account hardening**: rate-limit log-in attempts, password reset,
   and moving a guest's browser streak into their account when they sign up. Chess.com
   OAuth as a second way to sign in, once approved credentials exist.
 - **A real opponent-strength option for Learn/Analyze** - right now Stockfish always plays

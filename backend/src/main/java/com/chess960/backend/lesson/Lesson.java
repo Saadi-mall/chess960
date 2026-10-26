@@ -11,6 +11,7 @@ import java.util.List;
  * @param mainLine Stockfish's main line in numbered SAN, e.g. "1. Nf3 Nf6 2. d4"
  * @param mainLineMoves the same line as a list of SAN moves
  * @param mainLineFens the starting FEN, then the FEN after each main-line move
+ * @param mainLineSquares each main-line move's from/to squares, for highlighting the last move
  * @param plans what each side does in that main line, drawn as arrows
  */
 public record Lesson(
@@ -25,6 +26,7 @@ public record Lesson(
         String mainLine,
         List<String> mainLineMoves,
         List<String> mainLineFens,
+        List<Arrow> mainLineSquares,
         List<Plan> plans) {
 
     /** @param color "feature", "white" or "black" - which colour the board draws it in */

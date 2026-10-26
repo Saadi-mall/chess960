@@ -54,8 +54,17 @@ export function fetchMe(): Promise<User | null> {
   return fetch("/api/auth/me").then(asJson<{ user: User | null }>).then((r) => r.user);
 }
 
-export function register(email: string, password: string, displayName: string): Promise<User> {
+/** Starts a sign-up. No account exists yet: the server emails a link, and the account is
+ * created when it's opened (see verifyEmail). Resolves with the address it was sent to. */
+export function register(email: string, password: string, displayName: string): Promise<string> {
   return post("/api/auth/register", { email, password, displayName })
+    .then(asJson<{ email: string }>)
+    .then((r) => r.email);
+}
+
+/** Opens an emailed sign-up link: creates the account and signs in. */
+export function verifyEmail(token: string): Promise<User> {
+  return post("/api/auth/verify-email", { token })
     .then(asJson<{ user: User }>)
     .then((r) => r.user);
 }

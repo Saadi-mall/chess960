@@ -46,6 +46,9 @@ public final class Game {
     /** The FEN before the first move, then after each move - lets a client step back
      * through the game without replaying moves itself. One longer than moveHistory. */
     private final List<String> fenHistory = new ArrayList<>();
+    /** The same moves as moveHistory, as Move objects - for replaying the game elsewhere
+     * (Analyze) and for highlighting the last move. */
+    private final List<Move> playedMoves = new ArrayList<>();
     private final Map<String, Integer> positionCounts = new HashMap<>();
 
     public Game(String id, Position position, TimeControl timeControl, int startingNumber) {
@@ -93,6 +96,10 @@ public final class Game {
 
     public synchronized List<String> fenHistory() {
         return List.copyOf(fenHistory);
+    }
+
+    public synchronized List<Move> playedMoves() {
+        return List.copyOf(playedMoves);
     }
 
     /** Remaining time right now, accounting for the clock that's currently ticking. */
@@ -175,6 +182,7 @@ public final class Game {
         position.makeMove(move);
         moveHistory.add(san);
         fenHistory.add(Fen.toShredderFen(position));
+        playedMoves.add(move);
         drawOfferBy = null;
 
         updateStatusAfterMove(mover);

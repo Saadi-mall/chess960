@@ -25,6 +25,18 @@ export function applyMove(fen: string, from: string, to: string, promotion?: str
   }).then(asJson<PositionState>);
 }
 
+/** Plays a whole line (e.g. a finished game) in one request: the position after each move. */
+export function replayMoves(
+  fen: string,
+  moves: Array<{ from: string; to: string; promotion: string | null }>,
+): Promise<PositionState[]> {
+  return fetch("/api/positions/replay", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fen, moves }),
+  }).then(asJson<PositionState[]>);
+}
+
 /** Stockfish's evaluation of a position - slow (a search plus engine start-up). */
 export function evaluatePosition(fen: string): Promise<AnalysisResponse> {
   return fetch("/api/analysis/evaluate", {

@@ -17,6 +17,8 @@ export interface GameStateMessage {
   moveHistory: string[];
   /** The starting FEN, then the FEN after each move - one longer than moveHistory. */
   fenHistory: string[];
+  /** The same moves in from/to form - for the last-move highlight and Analyze. */
+  moves: LegalMove[];
   whiteConnected: boolean;
   blackConnected: boolean;
 }

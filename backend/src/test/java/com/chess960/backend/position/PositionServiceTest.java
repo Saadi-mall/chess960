@@ -22,6 +22,26 @@ class PositionServiceTest {
     }
 
     @Test
+    void replaysAWholeLineIncludingChess960Castling() {
+        // Position #0-style back rank with the king on b1 and a rook on a1 next to it.
+        var positions = service.replay("1k6/8/8/8/8/8/P7/RK5R w HA - 0 1", java.util.List.of(
+                new MoveDto("b1", "a1", null),
+                new MoveDto("b8", "c8", null)));
+
+        assertEquals(2, positions.size());
+        assertEquals("O-O-O", positions.get(0).lastMoveSan());
+        assertEquals("Kc8", positions.get(1).lastMoveSan());
+        assertEquals("white", positions.get(1).turn());
+    }
+
+    @Test
+    void replayStopsAtAnIllegalMove() {
+        assertThrows(IllegalArgumentException.class, () -> service.replay(Fen.STANDARD_START, java.util.List.of(
+                new MoveDto("e2", "e4", null),
+                new MoveDto("e2", "e4", null))));
+    }
+
+    @Test
     void rejectsAnIllegalMove() {
         assertThrows(
                 IllegalArgumentException.class,

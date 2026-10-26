@@ -25,6 +25,11 @@
   fill: var(--board-dark);
 }
 
+.square-last-move {
+  fill: var(--board-last-move);
+  pointer-events: none;
+}
+
 .square-selected,
 .square-marker-selected {
   fill: var(--board-selected);

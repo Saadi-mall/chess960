@@ -32,6 +32,28 @@ public class PositionService {
         return stateOf(position, null);
     }
 
+    /** The most moves a replay will take - far more than any real game, to bound the work. */
+    static final int MAX_REPLAY_MOVES = 1000;
+
+    /**
+     * Plays a whole line from {@code fen} and returns the position after each move, in one
+     * request - how a finished game is loaded into Analyze. Stops with an error at the
+     * first illegal move.
+     */
+    public List<PositionStateResponse> replay(String fen, List<MoveDto> moves) {
+        if (moves.size() > MAX_REPLAY_MOVES) {
+            throw new IllegalArgumentException("Too many moves to replay");
+        }
+        List<PositionStateResponse> positions = new java.util.ArrayList<>();
+        String current = fen;
+        for (MoveDto move : moves) {
+            PositionStateResponse next = applyMove(new MoveRequest(current, move.from(), move.to(), move.promotion()));
+            positions.add(next);
+            current = next.fen();
+        }
+        return positions;
+    }
+
     public PositionStateResponse applyMove(MoveRequest request) {
         Position position = Fen.parse(request.fen());
         PieceType promotion = promotionType(request.promotion());

@@ -30,6 +30,7 @@
   --board-dark: #739552;
   --board-highlight: rgba(255, 235, 59, 0.5);
   --board-selected: rgba(255, 235, 59, 0.55);
+  --board-last-move: rgba(255, 235, 59, 0.38);
   --board-success: rgba(62, 207, 142, 0.8);
   --board-danger: rgba(240, 90, 76, 0.75);
   --board-hint: rgba(20, 30, 10, 0.3);

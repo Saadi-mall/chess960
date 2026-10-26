@@ -28,3 +28,10 @@ services:
         value: "true"
       - key: ALLOWED_ORIGINS
         value: "https://*.vercel.app"
+      # Email verification links point here.
+      - key: APP_BASE_URL
+        value: "https://chess960-rho.vercel.app"
+      # Never put verification links in the logs in production: without BREVO_API_KEY and
+      # MAIL_FROM_ADDRESS (set on Render's dashboard), sign-up is refused instead.
+      - key: LOG_EMAILS_WHEN_UNCONFIGURED
+        value: "false"

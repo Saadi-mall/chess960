@@ -51,6 +51,8 @@ interface ChessboardProps {
    * see {@link SquareMarker}. */
   markers?: SquareMarker[];
   arrows?: BoardArrow[];
+  /** The move that led to this position, highlighted on both its squares. */
+  lastMove?: { from: string; to: string } | null;
   /** Ignores all clicks/drags - used once a quiz step has been graded, so the board stops
    * taking input while the answer is on screen. */
   disabled?: boolean;
@@ -71,6 +73,7 @@ export function Chessboard({
   onSquareClick,
   markers,
   arrows = [],
+  lastMove = null,
   disabled = false,
 }: ChessboardProps) {
   const squares = useMemo(() => squaresFromFen(fen), [fen]);
@@ -205,7 +208,7 @@ export function Chessboard({
         role="group"
         aria-label="Chess board"
       >
-        {renderSquares(orientation, handleSquareClick, selected, markers)}
+        {renderSquares(orientation, handleSquareClick, selected, markers, lastMove)}
         {renderCoordinates(orientation)}
         {Object.entries(squares).map(([square, piece]) => {
           if (!piece) return null;
@@ -268,6 +271,7 @@ function renderSquares(
   onClick: (square: string) => void,
   selected: string | null,
   markers?: SquareMarker[],
+  lastMove?: { from: string; to: string } | null,
 ) {
   const markerBySquare = new Map<string, SquareMarker["kind"]>();
   for (const marker of markers ?? []) {
@@ -292,6 +296,19 @@ function renderSquares(
           onClick={() => onClick(square)}
         />,
       );
+      if (lastMove && (lastMove.from === square || lastMove.to === square)) {
+        squares.push(
+          <rect
+            key={square + "-last"}
+            data-square={square}
+            x={displayFile * SIZE}
+            y={displayRank * SIZE}
+            width={SIZE}
+            height={SIZE}
+            className="square-last-move"
+          />,
+        );
+      }
       if (selected === square && !markerBySquare.has(square)) {
         squares.push(
           <rect
