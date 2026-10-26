@@ -1,7 +1,8 @@
 import type { Evaluation } from "./types";
 
 interface EvaluationBarProps {
-  evaluation: Evaluation;
+  /** Null while Stockfish is still thinking about this position. */
+  evaluation: Evaluation | null;
   turn: "white" | "black";
 }
 
@@ -16,6 +17,18 @@ function whitePerspective(evaluation: Evaluation, turn: "white" | "black") {
 }
 
 export function EvaluationBar({ evaluation, turn }: EvaluationBarProps) {
+  if (!evaluation) {
+    return (
+      <div className="eval eval-pending">
+        <div className="eval-row">
+          <span className="eval-label">…</span>
+          <span className="eval-best">Stockfish is thinking</span>
+        </div>
+        <div className="eval-bar" />
+        <span className="eval-depth">&nbsp;</span>
+      </div>
+    );
+  }
   const { scoreCentipawns, mateInMoves } = whitePerspective(evaluation, turn);
 
   let label: string;

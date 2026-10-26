@@ -295,13 +295,13 @@
 }
 
 .avatar-white {
-  background: #f6eedf;
-  color: #241c10;
+  background: var(--side-white);
+  color: var(--side-white-text);
 }
 
 .avatar-black {
-  background: #1c1610;
-  color: #f3e9d8;
+  background: var(--side-black);
+  color: var(--side-black-text);
 }
 
 .avatar-accent {
@@ -483,7 +483,7 @@
 /* Black figurines are black-filled; on the dark theme's table they need an outline. */
 :root:not([data-theme="light"]) .move-piece-b,
 :root:not([data-theme="light"]) .player-piece-b {
-  filter: drop-shadow(0 0 0.6px #f3e9d8) drop-shadow(0 0 0.6px #f3e9d8);
+  filter: drop-shadow(0 0 0.6px #e9ebef) drop-shadow(0 0 0.6px #e9ebef);
 }
 
 .move-table-empty {

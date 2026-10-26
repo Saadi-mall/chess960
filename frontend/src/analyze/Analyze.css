@@ -63,7 +63,7 @@
 
 .eval-bar {
   height: 0.6rem;
-  background: #1c1610;
+  background: var(--side-black);
   border-radius: 999px;
   overflow: hidden;
   border: 1px solid var(--color-border);
@@ -71,7 +71,7 @@
 
 .eval-bar-white {
   height: 100%;
-  background: #f6eedf;
+  background: var(--side-white);
   transition: width 400ms ease;
 }
 

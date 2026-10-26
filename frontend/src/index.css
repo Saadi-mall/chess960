@@ -4,34 +4,43 @@
   /* Dark is the default theme, not a prefers-color-scheme override - see theme.ts.
      [data-theme="light"] below is the only other state.
 
-     Three background levels for real depth: bg (the page itself) < panel (sidebars,
-     cards) < raised (buttons, inputs, selected states) - each one step lighter so
-     interactive elements never blend into the surface they sit on. */
-  --color-bg: #130f0a;
-  --color-panel: #1d1710;
-  --color-raised: #2b2217;
-  --color-raised-hover: #362a1a;
-  --color-text: #f3e9d8;
-  --color-text-muted: #a99a80;
-  --color-border: #42351f;
+     Cool slate backgrounds in three levels for depth: bg (the page) < panel (cards) <
+     raised (buttons, inputs, selected states). Green is the accent; "correct" uses a
+     separate mint so it never reads as just "accent", and board selections are yellow so
+     they show up on the green squares. */
+  --color-bg: #15171c;
+  --color-panel: #1d2027;
+  --color-raised: #272b34;
+  --color-raised-hover: #30353f;
+  --color-text: #e9ebef;
+  --color-text-muted: #9ba2ae;
+  --color-border: #353a45;
 
-  --color-accent: #e3a43c;
-  --color-accent-strong: #f3b24a;
-  --color-accent-contrast: #1a1409;
-  --color-accent-muted: rgba(227, 164, 60, 0.16);
+  --color-accent: #81b64c;
+  --color-accent-strong: #93c95b;
+  --color-accent-contrast: #ffffff;
+  --color-accent-muted: rgba(129, 182, 76, 0.16);
 
-  --color-success: #4fb871;
-  --color-success-bg: rgba(79, 184, 113, 0.16);
-  --color-danger: #e2594a;
-  --color-danger-bg: rgba(226, 89, 74, 0.16);
+  --color-success: #3ecf8e;
+  --color-success-bg: rgba(62, 207, 142, 0.14);
+  --color-danger: #f06a5c;
+  --color-danger-bg: rgba(240, 106, 92, 0.14);
 
-  --board-light: #eadbb3;
-  --board-dark: #7a5330;
-  --board-highlight: rgba(227, 164, 60, 0.45);
-  --board-selected: rgba(227, 164, 60, 0.65);
-  --board-success: rgba(79, 184, 113, 0.55);
-  --board-danger: rgba(226, 89, 74, 0.55);
-  --board-hint: rgba(28, 18, 8, 0.32);
+  --board-light: #ebecd0;
+  --board-dark: #739552;
+  --board-highlight: rgba(255, 235, 59, 0.5);
+  --board-selected: rgba(255, 235, 59, 0.55);
+  --board-success: rgba(62, 207, 142, 0.8);
+  --board-danger: rgba(240, 90, 76, 0.75);
+  --board-hint: rgba(20, 30, 10, 0.3);
+  --board-arrow-white: rgba(255, 170, 0, 0.85);
+  --board-arrow-black: rgba(56, 132, 255, 0.85);
+
+  /* Colours that stand for the White and Black sides (avatars, evaluation bar). */
+  --side-white: #f2f2ee;
+  --side-white-text: #1c2027;
+  --side-black: #111317;
+  --side-black-text: #e9ebef;
 
   --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-heading: "Source Serif 4", Georgia, serif;
@@ -67,33 +76,26 @@
 :root[data-theme="light"] {
   color-scheme: light;
 
-  --color-bg: #f3ead7;
-  --color-panel: #fbf4e6;
+  --color-bg: #eef0f4;
+  --color-panel: #f8f9fb;
   --color-raised: #ffffff;
-  --color-raised-hover: #fff9ee;
-  --color-text: #241c10;
-  --color-text-muted: #70604a;
-  --color-border: #ddc9a0;
+  --color-raised-hover: #f1f4f8;
+  --color-text: #1c2027;
+  --color-text-muted: #5e6675;
+  --color-border: #d6dae2;
 
-  --color-accent: #a8631a;
-  --color-accent-strong: #8f5214;
-  --color-accent-contrast: #fff8ec;
-  --color-accent-muted: rgba(168, 99, 26, 0.12);
+  --color-accent: #5f9a32;
+  --color-accent-strong: #4f8628;
+  --color-accent-contrast: #ffffff;
+  --color-accent-muted: rgba(95, 154, 50, 0.12);
 
-  --color-success: #2f8f52;
-  --color-success-bg: rgba(47, 143, 82, 0.12);
-  --color-danger: #c13a2c;
-  --color-danger-bg: rgba(193, 58, 44, 0.12);
+  --color-success: #13945e;
+  --color-success-bg: rgba(19, 148, 94, 0.1);
+  --color-danger: #d13f30;
+  --color-danger-bg: rgba(209, 63, 48, 0.1);
 
-  --board-light: #f1e3c6;
-  --board-dark: #8b5e34;
-  --board-highlight: rgba(168, 99, 26, 0.4);
-  --board-selected: rgba(168, 99, 26, 0.6);
-  --board-success: rgba(47, 143, 82, 0.55);
-  --board-danger: rgba(193, 58, 44, 0.55);
-
-  --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.08);
-  --shadow-board: 0 10px 30px rgba(0, 0, 0, 0.18);
+  --shadow-card: 0 1px 6px rgba(20, 30, 50, 0.08);
+  --shadow-board: 0 8px 24px rgba(20, 30, 50, 0.16);
 }
 
 * {

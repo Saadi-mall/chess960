@@ -35,3 +35,18 @@ export interface AnalysisResponse {
   overview: Overview | null;
   evaluation: Evaluation;
 }
+
+/** The rules-only result of a move: no engine evaluation. */
+export interface PositionState {
+  fen: string;
+  legalMoves: LegalMove[];
+  turn: "white" | "black";
+  status: string;
+  winner: "white" | "black" | null;
+  lastMoveSan: string | null;
+}
+
+/** One position in the Analyze tab's line; evaluation is null until Stockfish answers. */
+export interface AnalyzedPosition extends PositionState {
+  evaluation: Evaluation | null;
+}

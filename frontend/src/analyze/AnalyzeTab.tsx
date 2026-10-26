@@ -10,10 +10,10 @@ import { useHistoryNav } from "../layout/useHistoryNav";
 import { PositionDetail, PositionModeControl } from "../positions/PositionPicker";
 import type { PositionMode } from "../positions/previewApi";
 import { useStartingPreview } from "../positions/useStartingPreview";
-import { fetchStartingPosition, playMove } from "./api";
+import { applyMove, evaluatePosition, fetchStartingPosition } from "./api";
 import { EvaluationBar } from "./EvaluationBar";
 import { OverviewCard } from "./OverviewCard";
-import type { AnalysisResponse, Overview } from "./types";
+import type { AnalyzedPosition, Overview } from "./types";
 import "./Analyze.css";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -28,13 +28,14 @@ export function AnalyzeTab() {
   const [number, setNumber] = useState(518);
   const [shuffleKey, setShuffleKey] = useState(0);
   const [overview, setOverview] = useState<Overview | null>(null);
-  // Every analyzed position so far: [0] is the start, [i] is after i moves. Keeping the
-  // whole response (not just the FEN) lets the evaluation follow the back/forward buttons.
-  const [history, setHistory] = useState<AnalysisResponse[]>([]);
+  // Every position so far: [0] is the start, [i] is after i moves. Keeping the whole
+  // position (not just the FEN) lets the evaluation follow the back/forward buttons.
+  const [history, setHistory] = useState<AnalyzedPosition[]>([]);
   const [moves, setMoves] = useState<string[]>([]);
   const [flipped, setFlipped] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [thinking, setThinking] = useState(false);
+  // True only while the (fast) rules request for a move is in flight.
+  const [moving, setMoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const nav = useHistoryNav(moves.length);
 
@@ -59,18 +60,32 @@ export function AnalyzeTab() {
     }
   }
 
+  /**
+   * Two requests, so the board never waits for the engine: the rules endpoint answers in
+   * milliseconds with the new position, which goes on the board straight away; Stockfish's
+   * evaluation of it follows in the background and is filled in when it arrives.
+   */
   async function handleMove(move: LegalMove) {
     if (!latest) return;
-    setThinking(true);
+    setMoving(true);
     setError(null);
     try {
-      const response = await playMove(latest.fen, move.from, move.to, move.promotion);
-      setHistory((h) => [...h, response]);
-      setMoves((m) => [...m, response.lastMoveSan ?? `${move.from}-${move.to}`]);
+      const next = await applyMove(latest.fen, move.from, move.to, move.promotion);
+      const index = history.length;
+      setHistory((h) => [...h, { ...next, evaluation: null }]);
+      setMoves((m) => [...m, next.lastMoveSan ?? `${move.from}-${move.to}`]);
+      evaluatePosition(next.fen).then(
+        (result) =>
+          setHistory((h) =>
+            // Skip it if that move was undone (and maybe replaced) while Stockfish was thinking.
+            h.map((p, i) => (i === index && p.fen === next.fen ? { ...p, evaluation: result.evaluation } : p)),
+          ),
+        () => setError("Stockfish couldn't evaluate that position"),
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "That move was rejected");
     } finally {
-      setThinking(false);
+      setMoving(false);
     }
   }
 
@@ -109,7 +124,7 @@ export function AnalyzeTab() {
             className="icon-button"
             aria-label="Undo last move"
             title="Undo last move"
-            disabled={moves.length === 0 || thinking}
+            disabled={moves.length === 0 || moving}
             onClick={undo}
           >
             <ResetIcon />
@@ -175,7 +190,7 @@ export function AnalyzeTab() {
           />
           <SideCard>
             <div className="side-section">
-              <span className="side-label">Evaluation{thinking ? " · thinking..." : ""}</span>
+              <span className="side-label">Evaluation</span>
               <EvaluationBar evaluation={viewed.evaluation} turn={viewed.turn} />
               {gameOver && (
                 <p className="side-status" style={{ marginTop: "var(--space-3)" }}>
@@ -200,7 +215,7 @@ export function AnalyzeTab() {
       board={
         <Chessboard
           fen={viewed.fen}
-          legalMoves={nav.isLatest && !gameOver && !thinking ? latest.legalMoves : []}
+          legalMoves={nav.isLatest && !gameOver && !moving ? latest.legalMoves : []}
           orientation={flipped ? "b" : "w"}
           onMove={handleMove}
           animateEntry={moves.length === 0}
