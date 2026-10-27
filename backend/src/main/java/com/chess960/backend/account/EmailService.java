@@ -12,10 +12,10 @@ import org.springframework.web.client.RestClientException;
 
 /**
  * Sends account emails through Brevo's HTTP API (an HTTP API rather than SMTP because free
- * hosts commonly block outgoing mail ports). With no API key configured it either logs
- * the message - for local development, so the confirmation flow can be tried without an
- * email account - or, where that's switched off (production), reports itself unavailable,
- * so sign-up skips confirmation rather than ever writing a working link into a log.
+ * hosts commonly block outgoing mail ports). With no API key configured it reports itself
+ * unavailable, so sign-up creates accounts straight away (how the live site and a plain
+ * `docker compose up` run). Setting LOG_EMAILS_WHEN_UNCONFIGURED=true instead logs each
+ * message, so the confirmation flow can be tried locally without an email account.
  */
 @Service
 public class EmailService implements EmailSender {
@@ -32,7 +32,7 @@ public class EmailService implements EmailSender {
             @Value("${chess960.mail.brevo-api-key:}") String apiKey,
             @Value("${chess960.mail.from-address:}") String fromAddress,
             @Value("${chess960.mail.from-name:Chess960}") String fromName,
-            @Value("${chess960.mail.log-when-unconfigured:true}") boolean logWhenUnconfigured,
+            @Value("${chess960.mail.log-when-unconfigured:false}") boolean logWhenUnconfigured,
             RestClient.Builder http) {
         this.apiKey = apiKey;
         this.fromAddress = fromAddress;

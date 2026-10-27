@@ -1,363 +1,379 @@
-# Decisions, trade-offs, time, and what's next
+# Decisions, trade-offs, and what's next
 
-## AI usage
+This document explains why the app is built the way it is: the main design decisions and
+what each one costs, the bugs that testing caught, and what I'd do with more time. For how
+to run the app, see the [README](../README.md).
 
-This app was built with [Claude Code](https://claude.com/claude-code) (Claude Sonnet 5),
-an AI coding agent, working interactively under my direction: I set the brief (the
-`CLAUDE.md` in this repo is the actual spec I gave it, written before any code existed),
-reviewed its design choices as it went, and it wrote essentially all of the code, tests,
-infrastructure, and this document. The full session transcript is included with this
-submission per the task's request to share agent transcripts.
+Contents:
 
-Because of that, the time log below is agent wall-clock time, not focused human
-engineering hours, and the two aren't comparable - the agent reads a published perft table
-or drafts a Kubernetes manifest much faster than I would, but it also needed oversight the
-whole way. I'm including it anyway because it's honest about how this was actually built,
-and because the *order* and *content* of the work - what got tested, what bugs got caught
-and how, what got cut - is the part that's actually representative of how I'd run a project
-like this, agent or not.
+1. [How this was built](#how-this-was-built)
+2. [Rules engine](#rules-engine)
+3. [Server and data](#server-and-data)
+4. [Stockfish](#stockfish)
+5. [Frontend](#frontend)
+6. [Daily lesson](#daily-lesson)
+7. [Accounts](#accounts)
+8. [Hosting](#hosting)
+9. [Bugs that testing caught](#bugs-that-testing-caught)
+10. [What I'd do next](#what-id-do-next)
 
-## Time breakdown
+## How this was built
 
-Real timestamps from the build session, 2026-10-24, 21:39-23:15 (1h 36m total). Full
-detail, including exactly what was tested at each step and every bug found along the way,
-is in [TIME_LOG.md](TIME_LOG.md); summarized here:
+### AI usage
+
+The app was built with [Claude Code](https://claude.com/claude-code), Anthropic's AI coding
+agent, working under my direction. I wrote the brief (`CLAUDE.md` in this repo is the spec
+I gave it, written before any code existed), reviewed its design choices as it went, tested
+the app myself, and asked for changes. The agent wrote essentially all of the code, tests,
+infrastructure and documentation. The session transcripts are included with the submission,
+as the task asked.
+
+### Time
+
+The first complete version was built in one session on 2026-10-24, from 21:39 to 23:15
+(1 hour 36 minutes), following the build order in `CLAUDE.md`. These are the agent's
+wall-clock times, not focused human hours, so they aren't comparable to a person coding
+alone. The step-by-step log, with what was tested at each step, is in
+[TIME_LOG.md](TIME_LOG.md).
 
 | Step | Time | What |
 |---|---|---|
 | 1. Scaffold | 9 min | Repo, Docker Compose, Postgres, health check end-to-end |
-| 2. Rules engine | 12 min | Board/moves/FEN, Chess960 castling, perft-tested |
-| 3. Board UI | 7 min | Custom SVG board, click/drag, animation |
-| 4. Play tab | 26 min | Multiplayer over WebSockets - the largest single piece |
+| 2. Rules engine | 12 min | Board, moves, FEN, Chess960 castling, perft tests |
+| 3. Board UI | 7 min | Custom SVG board, click and drag, entry animation |
+| 4. Play tab | 26 min | Multiplayer over WebSockets (the largest single piece) |
 | 5. Position analyzer | 5 min | Overview card facts |
-| 6. Stockfish | 8 min | UCI engine, Postgres cache |
-| 7. Analyze tab | 8 min | Sandbox play + live evaluation |
+| 6. Stockfish | 8 min | UCI engine wrapper, Postgres cache |
+| 7. Analyze tab | 8 min | Play out moves with a live evaluation |
 | 8. Learn tab | 6 min | Daily lesson, streak |
-| 9. Chess.com import | 6 min | Optional - kept, since there was time |
-| 10. Kubernetes | 6 min | Verified against a real local cluster |
-| 11. README + this doc | 3 min | Final write-up, re-verified the one-command claim from a clean state |
+| 9. Chess.com import | 6 min | Optional; kept, since there was time |
+| 10. Kubernetes | 6 min | Tested on a real local cluster |
+| 11. README and this doc | 3 min | Write-up; re-tested the one-command setup from scratch |
 
-## Main decisions
+After that first version, I used the app and asked for several rounds of changes, which
+weren't timed:
 
-**No chess library - the rules engine is hand-written.** This was an explicit requirement
-(see `CLAUDE.md`), not a default: the point was to show the engine itself, not plumbing
-around someone else's. It's a plain 8x8 mailbox board (`index = rank * 8 + file`), chosen
-over 0x88 or bitboards specifically because it's the version easiest to explain in an
-interview - the performance difference doesn't matter at this scale.
+- A redesigned layout: a large board with player bars, and a move list with back/forward
+  buttons and arrow keys.
+- Proper move notation, confirmation dialogs, and legal-move hints.
+- A richer daily lesson.
+- Optional accounts with server-side streaks.
+- Deployment to Vercel, Render and Supabase.
+- Analyzing a finished game, plus a last-move highlight, check highlight and captured
+  pieces.
+- A visual refresh.
 
-**Castling is the king capturing its own rook.** This is the standard Chess960-friendly
-encoding (it's literally how Stockfish represents it internally in `UCI_Chess960` mode,
-which is a large part of why it was chosen): `Move.from` is the king's square, `Move.to` is
-that rook's square, however close together or far apart they start. It sidesteps the
-ambiguity a king-destination-square encoding has in Chess960, where sometimes the king
-doesn't move (or the destination is also a legal king move for some other reason), and the
-`UCI_Chess960` castling notation and this app's own notation end up identical - no
-translation layer needed when a move crosses that boundary.
+The bugs found along the way are listed [below](#bugs-that-testing-caught).
 
-**Castling rights are Shredder-FEN (rook files), not `KQkq`.** `KQkq` can be genuinely
-ambiguous in Chess960 (two rooks on the same side of the king), so rights are stored and
-serialized as the rook's file letter. The parser still accepts classic `KQkq` for FENs
-pasted in from elsewhere, resolved against the king's actual file on the board being
-parsed.
+## Rules engine
 
-**The frontend never computes chess rules - not even "which moves are legal from here".**
-Every board view (Play, Analyze, Learn) gets its legal moves from the server and only ever
-offers the server's own list back as a move; it has no code path that decides a move is
-legal. The one exception that proves the rule: reading which piece sits on which square off
-a FEN string, which is just parsing a server response, not ruling on anything. This is also
-why the Analyze tab's sandbox has its own stateless `PositionService` on the backend (see
-below) rather than letting the frontend track "the current position" by applying moves
-itself.
+**No chess library: the rules engine is hand-written.** This was a requirement of the brief.
+The point was to show the engine itself. The board is a plain 8x8 array
+(`index = rank * 8 + file`), chosen over 0x88 or bitboards because it's the easiest to read
+and explain. The speed difference doesn't matter at this scale.
 
-**Game state is in-memory, not persisted to Postgres.** A live game (position, clocks,
-tokens, draw-offer state) lives in a `ConcurrentHashMap` in the backend process. This was
-deliberate, not an oversight: Postgres is used for the one thing that actually benefits
-from persistence and is naturally keyed and bounded - the 960 starting-position Stockfish
-evaluations, which are expensive to compute and reused constantly. A live game's state
-changes every move and is only read by the (at most two) people playing it; persisting that
-would mean either writing to Postgres on every move (latency, for no real benefit - nobody
-needs a game to survive a backend restart in this scope) or a more complex write-behind
-scheme, neither of which pays for itself here. The real cost of this choice is that the
-backend can't horizontally scale past one replica without first moving this state
-somewhere shared (see "what's next", and the comment in `k8s/backend-deployment.yaml`,
-which deliberately deploys a single replica and explains why).
+**Castling is the king capturing its own rook.** A castling move is stored as
+`from` = the king's square, `to` = that rook's square, wherever they start. In Chess960 the
+king's destination square alone can be ambiguous: sometimes the king doesn't move at all,
+or its destination is also an ordinary king move. "King takes own rook" never is. It's also
+exactly how Stockfish writes castling in its Chess960 mode, so moves pass between the app
+and Stockfish with no translation.
 
-**Stockfish runs as a fresh process per evaluation, not a pool of long-lived engines.**
-Simpler, with no shared-process concurrency to reason about, at the cost of ~50-100ms of
-process startup per call. This is the right trade for a position-at-a-time analysis tool;
-it would need revisiting for something evaluating many positions per second.
+**Castling rights use Shredder-FEN (rook files), not `KQkq`.** `KQkq` can be ambiguous in
+Chess960 (for example, two rooks on the same side of the king), so rights are stored as
+each rook's file letter, like `HAha`. The FEN parser still accepts `KQkq` from elsewhere and
+works out which rooks it means from where the king is.
 
-**Only the 960 starting positions are cached; positions reached by playing moves are
-not.** There are exactly 960 of the former and they're requested repeatedly (every Analyze
-or Learn tab load of a given number); there are effectively unbounded many of the latter,
-so caching them wouldn't pay for itself and would need an eviction policy to avoid
-unbounded growth.
+**Correctness is tested with perft, against published numbers.** Perft counts every
+possible move sequence to a given depth. The counts are compared with published results:
+the standard starting position and a set of Chess960 positions from the Chess Programming
+Wiki. A single wrong move anywhere changes the totals. Perft caught a real castling bug
+(see [below](#bugs-that-testing-caught)).
 
-**The Analyze sandbox doesn't detect threefold repetition.** Checkmate, stalemate,
-insufficient material, and the 50-move rule are all checkable from a single FEN; threefold
-repetition needs the position history, which a stateless "here's a FEN, give me the result
-of one move" endpoint doesn't have (unlike a live `Game`, which does track it). Noted
-explicitly in `PositionService`'s Javadoc rather than left as a silent gap.
+**Insufficient material is simplified.** Each side is checked on its own: a lone king, or a
+king with a single bishop or knight, can't mate; anything more counts as enough, even two
+knights (which can't force mate). The game is drawn when neither side has enough. Most
+chess software simplifies the same way instead of encoding every dead position.
 
-**Insufficient material is simplified.** Both the live game and the Analyze sandbox treat a
-lone king or king-plus-one-minor as insufficient and everything else (including two
-knights, which technically still can't force mate) as sufficient - the same simplification
-most chess software makes, rather than encoding the full theory of drawn material
-combinations (e.g. opposite-colored bishops only, which this does *not* special-case).
+**A timeout follows the FIDE rule.** When a player's clock runs out, the opponent only
+wins if they still have enough material to checkmate. Otherwise it's a draw (FIDE article
+6.9). A simple "whoever ran out of time loses" gets this wrong.
 
-**Timeout correctly checks the FIDE rule, not just raw material.** If a flag falls, the
-game only credits the opponent with a win if *they* have enough material to actually force
-checkmate - if neither side does, it's a draw, per FIDE 6.9. This is a real nuance a naive
-"whoever didn't flag wins" implementation gets wrong.
+## Server and data
 
-**Pieces are the "Cburnett" SVG set, not Unicode glyphs.** The first pass rendered pieces
-as colored, outlined SVG `<text>` using the Unicode chess characters, specifically to keep
-the board self-contained with no external asset or licensing question to explain. After
-seeing it rendered, that read as noticeably rougher than the rest of the UI, so it was
-replaced with ["Cburnett"](https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces) -
-Colin M. L. Burnett's widely-used CC BY-SA 3.0 set (the same one lichess ships by default) -
-used unmodified, with the license and source cited in the README as that license requires.
-The board itself is still custom SVG; only the piece artwork is external.
+**The frontend never computes chess rules, not even which moves are legal.** Every board
+(Play, Analyze, Learn) gets its legal moves from the server and can only send one of those
+back. Even move notation (`Nf3`, `O-O`, `+`) comes from the server, because it depends on
+the position. The frontend only reads data off what the server sends:
 
-**Dark is the default theme, controlled by an explicit toggle, not `prefers-color-scheme`.**
-The first color pass used `prefers-color-scheme` to pick light or dark, which meant the
-actual default depended on each visitor's OS setting. Asked for dark specifically as the
-default regardless of OS preference, with light still available, the fix was a `data-theme`
-attribute set before first paint (reading a remembered choice from local storage, defaulting
-to dark) rather than a media query - see `theme.ts`.
+- **Where the pieces are**: read from the FEN to draw them.
+- **Check**: the king is highlighted when the server's notation for the last move ends in
+  `+` or `#`.
+- **Captured pieces and the +N lead**: each side's starting army is the same in every
+  Chess960 position (8 pawns, 2 rooks, 2 knights, 2 bishops, a queen), so whatever is
+  missing from the FEN was captured. The lead is the point difference of what's on the
+  board. One known approximation: after a promotion, the promoted pawn shows as
+  "captured", though the +N is still exact.
 
-**The daily position is deterministic, not stored.** `Learn`'s "today's position" is
-`new Random(date.toEpochDay()).nextInt(960)` - same date always gives the same number,
-everywhere, with nothing to persist or coordinate. The Learn tab's streak is tracked
-entirely in the browser's local storage; an anonymous learner id is also generated and
-stored but genuinely unused today - it's there so a future server-side streak (one that
-survives a cleared browser, or a leaderboard) could be added without inventing an identity
-scheme later, not a half-finished feature.
+**Live games are kept in memory, not in Postgres.** A game's position, clocks, seat tokens
+and draw offers live in a map in the backend process. Postgres is used for what actually
+needs to last:
 
-**Chess.com import is a separate page, not a fourth tab.** It's the one explicitly
-optional, cuttable item in the brief; linking it from the Analyze tab's setup screen keeps
-the "three tabs" framing intact for everything else. It downloads a player's monthly
-archives concurrently (Java 21 virtual threads) rather than sequentially, and tolerates one
-failed month without failing the whole import, since Chess.com's API has no way to ask for
-"just the Chess960 games" - importing means downloading everything and filtering
-client-side, which gets slow sequentially for an active player.
+- accounts and login sessions;
+- lesson results;
+- the Stockfish evaluations of the 960 starting positions, which are slow to compute and
+  requested constantly.
 
-**Daily lessons are built on the server from Stockfish's top lines.** Each day's lesson is computed once by `LessonBuilder` and cached in memory (rebuilt after a
-restart, warmed up at startup so the first visitor doesn't wait): two MultiPV-3 searches,
-one from the start and one after White's best move. Everything the lesson says is a fixed
-template filled with numbers read off the board or moves Stockfish chose - no hand-written
-chess advice, per the spec's "never made-up chess claims":
+A live game changes on every move and is read only by its two players and any spectators.
+Writing it to the database on every move would add delay for no real benefit at this
+scope.
 
-- **Key features**: castling routes and how many own pieces block them, what a bishop on a
-  long diagonal will look at once its pawn moves, which pawns start undefended. Starting
-  positions are mirror-symmetric, so features are described from White's side once.
-- **Weakest pawn** rather than weakest square, since back-rank pieces counted as "weak
-  squares" made the old question misleading. Fewest defenders wins; ties are broken by how
-  many enemy bishops/queens are already aimed at the pawn down a diagonal (through only
-  their own pawns); any pawn still tied is accepted.
-- **Three best moves, any order**, for White and then for Black after White's best move.
-  The lesson sends every legal move's SAN so the page can name a guess without knowing the
-  rules; guesses are compared in the board's move encoding.
-- **Plans** come last, because they'd give away the best-move answers: each side's moves
-  from Stockfish's main line, drawn as arrows, with the line itself replayable in the
-  notation column.
+The costs:
 
-**Accounts: email and password, sessions in an HttpOnly cookie.** Chess.com OAuth is only issued to developers Chess.com approves, so it wasn't something
-that could be built and tested here; plain email/password was chosen over third-party
-OAuth. Passwords are BCrypt-hashed (`spring-security-crypto` only - no Spring Security
-filter chain, since there are three protected endpoints). A session is a random 256-bit
-token in an HttpOnly, SameSite=Lax cookie; the database stores only its SHA-256, so a
-leaked table can't be used to sign in. SameSite=Lax plus JSON-only POST endpoints is the
-CSRF protection. Wrong password and unknown email get the same response, and an unknown
-email still runs a BCrypt comparison so the timing matches.
+- Games are lost when the backend restarts, which on the free host also happens when it
+  goes to sleep.
+- The backend can only run as one copy, because a second copy wouldn't see the first
+  one's games. `k8s/backend-deployment.yaml` deliberately runs a single replica and
+  explains why.
 
-Signed-in learners send their **answers**, not their score: the server grades them against
-its own copy of today's lesson, keeps only the first result per day, and only accepts
-today's lesson, so a streak can't be faked or backfilled from the browser. Streaks are
-computed from the stored dates (`Streaks`); a streak ending yesterday still counts until
-today's lesson is missed. Guests keep the old per-browser streak.
+**Seats are per browser tab.** Joining a game gives the browser a secret seat token, kept in
+`sessionStorage`. That way a second tab in the same browser can join as the opponent, and a
+refresh keeps your seat. Closing the tab and opening the link again later joins as a
+spectator instead.
 
-**Email confirmation is built in but only on when email can be sent.** With an email
-service configured, signing up stores a *pending* sign-up (password already
-BCrypt-hashed) and emails a one-time link; the `users` row is only created when that link
-is opened, so an address nobody controls never becomes an account. Like sessions, only the
-SHA-256 of the link's token is stored; links expire after 24 hours, and repeat sign-ups
-within a minute don't send another email (so the form can't be used to flood someone's
-inbox). Email goes out through Brevo's HTTP API rather than SMTP, since free hosts often
-block outgoing mail ports. Local development logs the link instead of sending it. The live
-site has no email service (setting one up meant a sender domain and another account), so
-there sign-up creates the account immediately - the trade-off is that an account's email
-isn't proven to belong to its owner, which only matters once there's something like
-password reset to send to it.
+**The connected/disconnected dot counts open connections.** One player can briefly have two
+connections, for example after a refresh, when the new page connects before the old one's
+disconnect arrives. A player is only marked as gone when none of their connections is
+still open.
 
-**Finished games can be analyzed.** The game state now carries each move in from/to form
-as well as SAN. "Analyze this game" opens `/analyze?position=<n>&moves=e2e4,e7e5,...` -
-a link that survives a refresh and can be shared - and Analyze replays it with one
-`/api/positions/replay` request, then asks Stockfish only about the positions actually
-looked at, so a long game doesn't trigger dozens of searches up front.
+**Analyze uses stateless endpoints.** Analyze isn't a stored game. The page sends the
+current position (as FEN) and a move, and the server answers with the new position, its
+legal moves and the game status. A finished game opens in Analyze through a link like
+`/analyze?position=518&moves=e2e4,e7e5,...`, which the server replays in one request. The
+cost of being stateless: Analyze doesn't detect threefold repetition, because that needs
+the position history, which a single FEN doesn't have. Live games do detect it.
 
-**The analysis board doesn't wait for Stockfish.** A move in Analyze makes two requests: the rules-only `/api/positions/move` (~30ms) whose
-position goes on the board immediately, then `/api/analysis/evaluate` in the background,
-whose result is filled in when it arrives (and dropped if that move was undone meanwhile).
+**A move in Analyze doesn't wait for Stockfish.** Each move makes two requests:
 
-**Check and captured pieces come from server data, not frontend rules.** The board
-highlights the checked king when the server's SAN for the last move ends in `+` or `#`;
-the frontend never works out check itself. Captured pieces and the material lead (+N) are
-counted from the FEN: whatever is missing from each side's starting army (identical in
-every Chess960 position) was captured, and the lead is the point difference of what's on
-the board. That's reading data, like drawing the pieces, not rules. One known
-approximation: after a promotion, the promoted pawn shows as "captured", though the +N
-stays exact.
+1. A fast rules request (about 30 ms), whose new position goes on the board immediately.
+2. An evaluation request in the background, whose result appears when it's ready. It's
+   dropped if that move was undone meanwhile.
 
-**Look: minimal, two accents.** The panels sit on the page without outlines, shadows or
-divider lines; space separates things instead. Green stays the main accent (buttons, the
-active tab, the board) and amber is the second, kept for "now": the running clock, the
-current move in the list, and section labels. Headings are Fraunces (a serif, per the
-brief), text is Manrope.
+**The daily position is computed from the date, not stored.** It's
+`new Random(date.toEpochDay()).nextInt(960)`: the same date always gives the same
+position, for everyone, with nothing to store or keep in sync.
 
-## Bugs perft (and other testing) actually caught
+**Chess.com stats are an extra tab at the end.** It's the one optional item in the brief,
+so it sits after the three main tabs. Chess.com's API can't filter games by variant, so the
+backend downloads a player's monthly archives in parallel (Java 21 virtual threads) and
+keeps only the Chess960 games. One failed month doesn't fail the whole import.
 
-Called out here because they're the clearest evidence the testing was real, not
-decorative:
+## Stockfish
 
-- **A castling-rights bug perft caught, not inspection.** Capturing any piece on a
-  castling rook's file - not just that rook, at any rank - was wrongly clearing the
-  castling right. Two Chess960 perft positions were off by a handful of nodes at depth 4-5;
-  tracing why led straight to the bug. Fixed by comparing the full square instead of just
-  the file.
-- **Dark-mode pieces were indistinguishable.** Piece fill colors reused the same light/dark
-  UI theme tokens as the rest of the app, so in dark mode white and black pieces rendered
-  identically. Caught by actually looking at a dark-mode screenshot, not by reasoning about
-  the code.
-- **Clicking a capture didn't work.** Clicking an occupied destination square hit that
-  piece's own click handler (treated as "select this piece") instead of completing the
-  pending move - would have broken every capturing move by click. Found while manually
-  testing the board, before it ever touched a real game.
-- **Two real WebSocket concurrency bugs**, found by writing a small scripted client and
-  actually running three concurrent connections against the backend rather than trusting
-  the code: a null value crashing Tomcat's session-attributes map for spectator
-  connections, and concurrent broadcasts racing on the same WebSocket connection (Tomcat's
-  remote endpoint isn't safe for concurrent writes from different threads).
-- **A rematch handoff bug** that only showed up because two browser tabs of one profile
-  share local storage, which incidentally exposed a second, real bug underneath: the
-  rematch handoff left stale color/token in React state, because React Router doesn't
-  remount a component on a param-only navigation (`/play/oldId` to `/play/newId`).
-- **A board that stayed permanently scrambled after the first move**, found while testing
-  drag-and-drop on a freshly redesigned layout. The back-rank "shuffle into place" entry
-  animation set random offsets, then relied on a cancellable `requestAnimationFrame` chain
-  to clear them - fragile under React StrictMode's mount-effect double-invoke: the first
-  invocation's cleanup cancelled that rAF before it ever fired, and the second invocation's
-  own guard (seeing it had "already handled" this fen) skipped rescheduling it entirely, so
-  the offsets never got cleared. Confirmed by reading the actual DOM transform values rather
-  than guessing from a screenshot - every back-rank piece had a random fractional
-  `translate()`, every pawn a clean integer one. Fixed by moving the "is this a new fen"
-  check to run during render (React's documented pattern for resetting derived state) so a
-  second StrictMode invocation just redoes the same harmless work instead of being able to
-  suppress the first invocation's cleanup step.
-- **A join request that silently fired twice**, found immediately after fixing the bug
-  above while re-testing with two browser tabs: the second tab got "Game already has two
-  players" even though it was the first thing to try joining. The join effect's
-  `cancelled` flag (the same React-recommended pattern used everywhere else in this app)
-  only discards a stale *result* - it doesn't stop the `POST /join` request, which has a
-  real server-side side effect, from actually firing. Under StrictMode's double-invoke, the
-  first invocation's request quietly succeeded and claimed the seat, then had its result
-  thrown away by its own cleanup; the second invocation's request then failed because the
-  seat it wanted was already taken. Fixed with a ref-guarded "only ever fire this request
-  once per component instance" check instead of a cancel-the-result pattern, since this
-  request isn't safe to fire twice regardless of which result gets kept.
-- **A board that rendered absurdly small**, caught the moment the redesigned layout was
-  first opened in-browser: a flex child sized with `width: 100%` but no `flex-basis`
-  collapsed instead of filling its row. Fixed with CSS container queries
-  (`container-type: size` on the board's flex cell, `100cqmin` on the board itself) instead
-  of fighting the flex sizing further.
-- **An invalid CSS value that silently did nothing.** `justify-content: stretch` was used
-  to stop the board page from being vertically centered on mobile - that's a valid Grid
-  value but not a real Flexbox one, so the browser dropped the whole declaration and the
-  centering rule it was meant to override stayed active, leaving a dead gap above the
-  board. Replaced with `margin: auto` on the centered pages instead, which doesn't depend
-  on overriding another rule at all.
-- **A Kubernetes crash-loop**, found by actually standing up a local `kind` cluster rather
-  than trusting the YAML: the backend fails fast (and crash-loops) if Postgres isn't
-  reachable yet at startup. Fixed with an init container, confirmed with a clean
-  zero-restart redeploy.
-- **The Learn tab's quiz clicks never highlighted anything.** `Chessboard`'s "pick a
-  square" mode (`onSquareClick`) reported the click straight to the parent without ever
-  calling its own `setSelected`, so nothing on the board reacted - and because grading ran
-  immediately on click, there was no way to change your answer either. Fixed by (1) having
-  the board highlight the clicked square itself in that mode, and (2) splitting "pick" from
-  "grade" in `LearnTab`: a click (for the weakest-square quiz) or a completed move (for the
-  two best-move steps) now only stages an answer - a new `markers` prop on `Chessboard`
-  shows it, and lets the parent later recolor the same squares green/red - and nothing is
-  graded, or sent to the server for the move steps, until Submit. Covered by
-  `LearnTab.test.tsx`, the project's first frontend test.
-- **Move lists showed raw coordinates like "e3g1".** The move history was the engine's
-  from/to encoding, which for Chess960 castling is "king takes own rook" - unreadable, and
-  not valid notation. Added `San` to the rules package (disambiguation by file/rank among
-  *legal* alternatives only, `exd5`-style pawn captures, `=Q` promotions, `+`/`#`, and
-  `O-O`/`O-O-O` decided by which side the rook is on). It's on the server because SAN
-  depends on the position - captures, ambiguity, check - and the frontend doesn't compute
-  rules. Covered by `SanTest`, including Chess960 castling where the rook starts next to
-  the king.
-- **The second player couldn't join from the same browser.** Seats were kept in
-  `localStorage`, which every tab shares, so opening the invite link in a second tab found
-  the first tab's White seat and became a second White: the game never started and none of
-  Black's controls appeared. Seats are now in `sessionStorage` (per tab, still survives a
-  refresh). Trade-off: closing the tab and reopening the link no longer rejoins as that
-  player.
-- **A "Random" game didn't start on the previewed position.** The create request asked the
-  server to roll a new random number instead of sending the one already on screen. It now
-  sends the previewed number.
-- **Capture and castling targets had no move hint.** Legal-move dots were drawn under the
-  pieces, so any destination with a piece on it (a capture, or the own rook for castling)
-  was hidden. Hints are now drawn above the pieces, as a ring on occupied squares.
+**Stockfish runs inside the backend container, in Chess960 mode.** It's installed in the
+backend's Docker image and driven over UCI, its standard text protocol, with
+`UCI_Chess960` switched on.
 
+**A fresh Stockfish process for each evaluation, not a pool.** This is simpler, and there's
+no shared engine state to manage between requests. The cost is about 50-100 ms of startup
+per call. That's fine for analyzing one position at a time. It would need revisiting for
+something that evaluates many positions per second.
+
+**Only the 960 starting positions are cached.** There are exactly 960 of them, and they're
+requested over and over. Positions reached by playing moves are effectively unlimited, so
+caching those would need an eviction policy and wouldn't pay off.
+
+## Frontend
+
+**The board is custom SVG; the pieces are the "Cburnett" set.** The first version drew the
+pieces with Unicode chess symbols, to avoid any external assets. Next to the rest of the UI
+that looked rough, so the pieces were replaced with Colin M. L. Burnett's CC BY-SA 3.0
+set, the one lichess uses by default. The license is credited in the README. The board,
+coordinates, arrows and animations are all the project's own SVG.
+
+**Minimal look with two accents.** There are no outlines, shadows or divider lines; spacing
+separates things instead.
+
+- **Green** is the main accent: buttons, the active tab, the board.
+- **Amber** is the second accent, kept for "right now": the running clock, the current
+  move in the list, and the small section labels.
+- **Fonts**: headings use Fraunces (a serif, as the brief asked), and text uses Manrope.
+
+**Dark mode is the default, with a toggle.** Picking light or dark from the operating
+system's setting meant the default depended on each visitor's machine. I wanted dark by
+default with light still available, so the page sets the theme before it first draws,
+from a saved choice or dark (see `frontend/src/theme.ts`).
+
+## Daily lesson
+
+**Lessons are built on the server from Stockfish's top lines.** Each day's lesson is
+computed once by `LessonBuilder` and cached in memory. It's rebuilt after a restart, and
+built at startup so the first visitor doesn't wait. It takes two Stockfish searches, each
+asking for the top three moves: one from the starting position, and one after White's best
+move. Every sentence in the lesson is a fixed template filled with values read off the board
+or moves Stockfish chose. Nothing is hand-written chess advice, as the brief required.
+
+The lesson has five steps:
+
+1. **Key features**: castling routes and how many of a side's own pieces block them, what
+   a bishop on a long diagonal will see once its pawn moves, and which pawns start
+   undefended. Starting positions are mirror images for the two sides, so features are
+   described once, from White's side.
+2. **Weakest pawn** (rather than the weakest square, because back-rank pieces made "weakest
+   square" misleading): the pawn with the fewest defenders. Ties are broken by how many
+   enemy bishops or queens already aim at it; any pawn still tied counts as correct.
+3. **White's three best moves**, in any order.
+4. **Black's three best replies** after White's best move, in any order. To show each guess
+   in proper notation without knowing the rules, the page receives every legal move's
+   notation with the lesson.
+5. **Plans** come last, because they'd give away the answers: each side's moves from
+   Stockfish's main line, drawn as arrows, with the line replayable in the move list.
+
+## Accounts
+
+**Email and password; the session is an HttpOnly cookie.** Chess.com sign-in (OAuth) is
+only available to developers Chess.com approves, so it couldn't be built and tested here.
+
+- **Passwords** are hashed with BCrypt, using only `spring-security-crypto`. There's no full
+  Spring Security setup, since only three endpoints need a signed-in user.
+- **Sessions**: a session is a random 256-bit token in an HttpOnly, SameSite=Lax cookie.
+  The database stores only its SHA-256 hash, so a leaked table can't be used to sign in.
+- **CSRF**: the SameSite=Lax cookie plus JSON-only POST endpoints protects against
+  cross-site request forgery.
+- **No account probing**: a wrong password and an unknown email get the same answer and
+  take the same time, so the login form can't be used to find out who has an account.
+- **On the live site**, the browser only ever talks to the Vercel address for `/api`
+  (Vercel forwards it to Render), so the cookie is an ordinary first-party cookie.
+
+**The server grades lesson answers.** A signed-in learner sends their answers, not a score.
+The server grades them against its own copy of today's lesson, keeps only the first result
+each day, and only accepts today's lesson, so a streak can't be faked or backdated. A streak
+that ended yesterday still counts until today's lesson is missed. Guests keep their streak
+in the browser (`localStorage`) instead.
+
+**Email confirmation is built in but off unless email is configured.** With an email
+service set up (Brevo), sign-up works like this:
+
+- It stores a *pending* sign-up, with the password already hashed, and emails a one-time
+  link. The account is only created when that link is opened.
+- Links expire after 24 hours, and only their hash is stored.
+- Signing up again within a minute doesn't send another email, so the form can't be used
+  to flood someone's inbox.
+- Email goes through Brevo's HTTP API rather than SMTP, because free hosts often block mail
+  ports.
+
+Without an email service, which is how both the live site and `docker compose up` run,
+sign-up creates the account and signs in immediately. The trade-off is that an account's
+email isn't proven to belong to its owner. That only starts to matter once something is
+emailed to it, like a password reset. To try the confirmation flow locally, set
+`LOG_EMAILS_WHEN_UNCONFIGURED=true`, and the link is written to the backend's log instead
+of being emailed.
+
+## Hosting
+
+**Live: Vercel (frontend), Render (backend), Supabase (database), all on free plans.** The
+backend needs a long-running server for WebSockets and Stockfish, which Vercel can't host,
+so it runs as the same Docker image on Render. The database is on Supabase because
+Render's free Postgres is deleted after 30 days. Setup steps are in [DEPLOY.md](DEPLOY.md).
+
+The main cost is that **Render's free plan sleeps after 15 minutes without traffic**:
+
+- The first request after a sleep takes about 30-60 seconds.
+- In-memory games and the cached lesson are cleared by a sleep.
+- An open game sends a small ping every 4 minutes, so a game in progress keeps the server
+  awake.
+- A paid plan, or an uptime monitor hitting the health check every 10 minutes, would
+  remove the wait entirely.
+
+**Docker Compose for running it locally; Kubernetes manifests as an example.** `docker
+compose up --build` is the one-command setup. The manifests in `k8s/` show the same app on a
+cluster (tested on a local `kind` cluster). The live site doesn't use them.
+
+## Bugs that testing caught
+
+Listed because they show where the testing actually paid off.
+
+- **A castling-rights bug that perft caught.** Capturing *any* piece on a castling rook's
+  file, at any rank, wrongly removed that castling right. Two Chess960 perft positions were
+  off by a handful of moves at depth 4-5, and tracing why led straight to it. Fixed by
+  comparing the full square, not just the file.
+- **White and black pieces looked identical in dark mode.** The piece colors reused the
+  page's theme colors, which swap in dark mode. Caught by looking at a dark-mode
+  screenshot.
+- **Clicking to capture didn't work.** Clicking a square with a piece on it selected that
+  piece instead of finishing the move, which would have broken every capture made by
+  clicking. Found while testing the board by hand.
+- **Two WebSocket concurrency bugs**, found by running three scripted connections against
+  the backend at once:
+  - a spectator's empty seat value crashed Tomcat's session storage;
+  - two messages sent to the same connection at the same moment collided, because Tomcat
+    doesn't allow simultaneous writes to one connection.
+- **The board stayed scrambled after the first move.** The "pieces shuffle into place"
+  animation broke under React's development-mode double rendering: its cleanup step was
+  skipped, so the back-rank pieces kept random offsets. Found by reading the actual
+  `transform` values in the page, and fixed by deciding "is this a new position?" during
+  rendering instead of in an effect.
+- **Joining a game fired twice.** In development mode React runs effects twice. The join
+  request has a real effect on the server (it claims a seat), so the first request took the
+  seat and the second failed with "Game already has two players". Fixed by guarding the
+  request so it can only be sent once per page.
+- **The board rendered tiny.** A flexbox sizing issue in a redesigned layout. Fixed with CSS
+  container queries, which size the board from the space actually available.
+- **A CSS rule that silently did nothing.** `justify-content: stretch` isn't valid in
+  flexbox, so the browser dropped it and left a gap above the board on phones. Replaced
+  with `margin: auto`.
+- **A Kubernetes crash loop.** On a real local cluster, the backend crashed repeatedly
+  because it started before Postgres was ready. Fixed with an init container that waits for
+  the database, then confirmed with a clean redeploy and zero restarts.
+- **Learn's quiz didn't show your answer.** Clicking a square sent the answer straight away
+  without highlighting it, and there was no way to change it. Fixed by separating "choose"
+  from "submit". `LearnTab.test.tsx`, the project's first frontend test, covers it.
+- **Moves showed as raw coordinates like "e3g1".** The move list showed the internal
+  from/to format, which for castling is "king takes rook". Added proper notation (`San`) on
+  the server, including Chess960 castling where the rook starts next to the king.
+  `SanTest` covers it.
+- **A second tab couldn't join as the opponent.** Seats were kept in `localStorage`, which
+  all tabs share, so the second tab became a second White. Seats moved to `sessionStorage`
+  (one per tab).
+- **"Random" started a different position from the one shown.** The create request asked
+  the server for a new random number instead of sending the one on screen.
+- **No move hint on captures or castling.** The legal-move dots were drawn under the pieces,
+  so they were hidden on occupied squares. They're now drawn on top, as a ring.
+- **Analyze lagged a second behind every move**, because each move waited for Stockfish.
+  Split into a fast rules request plus a background evaluation (see
+  [Server and data](#server-and-data)).
 - **"Not connected" next to a player who was clearly playing.** After a rematch, a new game
-  or a refresh, the page opens its new connection before the old one's close reaches the
-  server, and the late close marked that player as disconnected. The server now only marks
-  a player gone when none of their connections is still open (with a test that replays
-  that exact order). The page is also rebuilt from scratch for each game id, so nothing
-  from the previous game's page carries over.
-- **The analysis board lagged behind every move.** Each move went to an endpoint that ran
-  Stockfish's 800ms search before answering, so the piece only moved about a second after
-  it was played. Split into a fast rules request and a background evaluation (see above).
+  or a refresh, the old connection's disconnect arrived after the new connection had
+  opened, and marked the player as gone. Fixed on the server, with a test that replays that
+  exact order. The game page is also rebuilt from scratch for each game.
 
-## What I'd do next with more time
+## What I'd do next
 
-- **Shared game state**, so the backend can run more than one replica. Most likely Redis:
-  game state moves there, the WebSocket handler and REST layer become stateless, and any
-  backend pod can serve any game. This is the main thing standing between this app and
-  being horizontally scalable.
-- **Persist finished games.** Right now a completed game's move history disappears when
-  the backend restarts. A `games` / `moves` table, written once at game end (not every
-  move - no need for that write volume), would let a "my games" or "review a past game"
-  feature exist.
-- **Branching lines in Analyze.** You can now step back through the moves played (and Undo
-  the last one), but playing a different move from an earlier position isn't supported -
-  moves only go on the end of the line. A small tree of variations would fix that.
-- **Multi-PV in Analyze.** `StockfishEngine.topLines` already powers the lessons; the
-  Analyze tab could show the top three lines too instead of just the best move.
-- **Games played from a position.** There's no public database to search Chess960 games by
-  starting position. The plan: store finished games here (see "Persist finished games"),
-  list the ones from today's lesson position, and match a signed-in user's own Chess.com
-  960 games by their `SetUp`/`FEN` PGN headers.
-- **Account hardening**: rate-limit log-in attempts, password reset,
-  and moving a guest's browser streak into their account when they sign up. Chess.com
-  OAuth as a second way to sign in, once approved credentials exist.
-- **A real opponent-strength option for Learn/Analyze** - right now Stockfish always plays
-  at full strength; `UCI_LimitStrength` / `UCI_Elo` would let the Learn tab's quizzes scale
-  to a beginner.
-- **More frontend automated tests.** There's now a small Vitest + React Testing Library
-  suite (`LearnTab.test.tsx`, `useHistoryNav.test.ts`), added once the Learn tab had an
-  interaction bug worth regression-testing, but most of the UI is still only verified manually in-browser.
-  Given more time: component tests for the board's own move/drag/promotion logic (the
-  highest-value remaining target, since it's the piece every tab depends on) and a couple
-  of Playwright end-to-end flows (create a game, join it, play a few moves).
-- **CI** (GitHub Actions): backend `mvn test` and frontend `tsc && vite build && oxlint` on
-  every push, since right now all of that only ran locally, by hand, once per step.
-- **HTTPS/WSS and real secret management** for any deployment that isn't local - the
-  Kubernetes manifests commit demo credentials in plaintext-base64 and the app assumes
-  plain `ws://`, both fine for this scope and neither fine for production (see
-  `k8s/README.md` for the full list of what's deliberately left out there).
-- **Opposite-colored-bishop endgames** in the insufficient-material check, and threefold
-  repetition in the Analyze sandbox (would need the client to send along its own position
-  history, since the endpoint is intentionally stateless).
+- **Shared game state (most likely Redis)** so the backend can run several copies, and games
+  survive a restart. This is the main thing stopping it from scaling out.
+- **Save finished games** in Postgres (written once when a game ends), to allow "my games",
+  reviewing past games, and listing games played from today's lesson position.
+- **Branching lines in Analyze.** You can step back and undo, but playing a different move
+  from an earlier position isn't supported yet.
+- **Top three lines in Analyze.** The engine wrapper already supports it (the lessons use
+  it).
+- **Account features**:
+  - password reset;
+  - limiting repeated login attempts;
+  - carrying a guest's streak over when they sign up;
+  - turning on email confirmation on the live site.
+- **Adjustable engine strength** (`UCI_LimitStrength` / `UCI_Elo`), so lessons could be
+  pitched at beginners.
+- **More frontend tests.** Most of the UI is tested by hand in the browser. The best next
+  targets are component tests for the board's click, drag and promotion handling, and a few
+  Playwright end-to-end tests (create a game, join it, play some moves).
+- **Continuous integration** (GitHub Actions) running the backend and frontend checks on
+  every push. Today they're run by hand.
+- **Keep the live backend awake** with a paid plan or an uptime monitor, so the first visit
+  is never slow.
+- **Production-grade Kubernetes**: the example manifests keep demo database credentials in a
+  committed Secret and serve plain HTTP. A real cluster would use a secret manager and TLS
+  (see `k8s/README.md`).
+- **Rule gaps**: rarer dead positions (for example a king and two bishops on the same
+  color against a lone king), and threefold repetition in Analyze (the page would need to
+  send its move history).

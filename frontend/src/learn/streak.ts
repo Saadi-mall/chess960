@@ -1,27 +1,8 @@
-const LEARNER_ID_KEY = "chess960:learnerId";
 const STREAK_KEY = "chess960:streak";
 
 export interface StreakState {
   lastCompletedDate: string;
   currentStreak: number;
-}
-
-/**
- * An anonymous per-browser id - there are no accounts. Nothing is sent to the server with
- * it today; it's generated and kept so a future server-side streak (surviving a localStorage
- * clear, or a leaderboard) could be added without changing what identifies a learner.
- */
-export function getOrCreateLearnerId(): string {
-  try {
-    let id = localStorage.getItem(LEARNER_ID_KEY);
-    if (!id) {
-      id = crypto.randomUUID();
-      localStorage.setItem(LEARNER_ID_KEY, id);
-    }
-    return id;
-  } catch {
-    return "anonymous";
-  }
 }
 
 export function getStreak(): StreakState {

@@ -36,12 +36,13 @@ chess960:
   # Where emailed links point - the frontend's address.
   app-base-url: ${APP_BASE_URL:http://localhost:5173}
   mail:
-    # Brevo (brevo.com) transactional email. With no key: logged in development, and
-    # sign-up refused where LOG_EMAILS_WHEN_UNCONFIGURED=false (production).
+    # Brevo (brevo.com) transactional email. With no key, sign-up skips email confirmation
+    # and creates the account straight away; LOG_EMAILS_WHEN_UNCONFIGURED=true logs the
+    # confirmation link instead, to try that flow locally without an email account.
     brevo-api-key: ${BREVO_API_KEY:}
     from-address: ${MAIL_FROM_ADDRESS:}
     from-name: ${MAIL_FROM_NAME:Chess960}
-    log-when-unconfigured: ${LOG_EMAILS_WHEN_UNCONFIGURED:true}
+    log-when-unconfigured: ${LOG_EMAILS_WHEN_UNCONFIGURED:false}
   # Origins allowed to open a game WebSocket - see WebSocketConfig.
   allowed-origins: ${ALLOWED_ORIGINS:*}
   auth:

@@ -1,7 +1,11 @@
 # Time log
 
-Working log kept while building, folded into the time breakdown in the final
-submission notes. Times are wall-clock, AI-assisted (see docs/DECISIONS.md).
+The working log of the **first build** (2026-10-24), kept as each step finished. Times are
+wall-clock, AI-assisted (see [DECISIONS.md](DECISIONS.md#how-this-was-built)). It describes
+the app as it was then: some details changed in later rounds (for example, the pieces were
+first drawn with Unicode symbols, the first theme was warm and paper-colored, and the
+Chess.com page was linked from Analyze rather than being a tab). DECISIONS.md describes
+the app as it is now.
 
 | Step | Start | End | Notes |
 |---|---|---|---|

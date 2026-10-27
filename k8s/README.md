@@ -1,10 +1,19 @@
 # Kubernetes manifests
 
-These aren't meant to replace `docker compose up --build` for local development - that's
-still the one-command way to run the app. They're here to show the deployment shape: a
-stateless, horizontally-scalable frontend; a backend that (today) can only run as a single
-replica because its game state lives in memory (see docs/DECISIONS.md); and a Postgres
-instance with a persistent volume.
+These are an example of running the app on a Kubernetes cluster. You don't need them to
+run or review the app: `docker compose up --build` is the one-command way to run it
+locally, and the live site is hosted without Kubernetes (see the
+[README](../README.md)).
+
+They show the deployment's shape:
+
+- a **frontend** (2 replicas): stateless, so it can scale freely;
+- a **backend** (1 replica): live games are kept in its memory, so a second replica wouldn't
+  see the first one's games (see [docs/DECISIONS.md](../docs/DECISIONS.md));
+- **Postgres** with a persistent volume, and an init container that makes the backend wait
+  until the database is ready.
+
+These manifests were tested on a local `kind` cluster.
 
 There's no image registry involved - these reference `chess960-backend:latest` and
 `chess960-frontend:latest` directly and expect them to already exist on the cluster's
@@ -47,10 +56,14 @@ kubectl get pods --watch
 kubectl get service frontend
 ```
 
-`frontend`'s Service is `type: LoadBalancer`. Docker Desktop and most cloud providers give
-it a reachable address directly; on minikube, run `minikube tunnel` in another terminal
-first; on kind, either install MetalLB or `kubectl port-forward service/frontend 3000:80`
-instead.
+`frontend`'s Service is `type: LoadBalancer`. How to reach it depends on the cluster:
+
+- **Docker Desktop and most cloud providers**: it gets an address directly.
+- **minikube**: run `minikube tunnel` in another terminal first.
+- **kind**: run `kubectl port-forward service/frontend 3000:80`, then open
+  http://localhost:3000 (or install MetalLB).
+
+To remove everything afterwards: `kubectl delete -k k8s/`.
 
 ## What's deliberately left out
 
@@ -64,3 +77,6 @@ instead.
 - **Secrets are committed in plaintext-base64** (`postgres-secret.yaml`), matching the demo
   credentials docker-compose.yml already uses. Fine for a take-home; not how you'd handle
   real secrets (sealed-secrets, an external secret manager, etc.).
+- **No HTTPS.** The app is served over plain HTTP, which is why the login cookie isn't
+  marked Secure here (`SECURE_COOKIE` defaults to `false`). A real cluster would put TLS in
+  front and set `SECURE_COOKIE=true`.

@@ -1,83 +1,129 @@
-# Deploying: Vercel + Render + Supabase (all free tiers)
+# Hosting the live site: Vercel + Render + Supabase
 
-Currently live at **https://chess960-rho.vercel.app**, with the backend at
-`https://chess960-backend.onrender.com` (Render, Virginia) and the database on Supabase
-(us-east-1). Pushing to `main` redeploys both automatically.
+This explains how the live site is hosted and how to set up your own copy. **You don't need
+any of it to use or review the app.** For that, open the live site or run it locally with
+Docker, as described in the [README](../README.md).
+
+## What runs where
+
+The live site is **https://chess960-rho.vercel.app**. All three services are on free plans,
+and pushing to the `main` branch on GitHub redeploys the frontend and backend
+automatically.
 
 | Part | Host | Why there |
 | --- | --- | --- |
-| Frontend (the link you share) | Vercel | Static site; forwards `/api` to the backend so the login cookie stays first-party |
-| Backend (Java, Stockfish, WebSockets) | Render, free web service | Runs the existing Docker image; Vercel can't run a long-lived server or WebSockets |
-| Database | Supabase, free Postgres | Doesn't expire (Render's free Postgres is deleted after 30 days) |
+| Frontend (the address you share) | Vercel | Serves the built React app, and forwards `/api` requests to the backend so the login cookie stays on the site's own domain |
+| Backend (Java, Stockfish, WebSockets) | Render, at `https://chess960-backend.onrender.com` (Virginia) | Runs the same Docker image as local development. Vercel can't host a long-running server or WebSockets |
+| Database | Supabase (AWS us-east-1) | Free Postgres that doesn't expire. Render's free Postgres is deleted after 30 days |
 
-Free-tier limits to know about:
+How requests flow:
 
-- **Render sleeps after 15 minutes without traffic.** The next visit waits ~30-60s while it
-  wakes up, and anything only in memory (live games, today's cached lesson) is lost. Live
-  games send a keep-alive ping every 4 minutes, so a game in progress doesn't count as idle.
-  To avoid the wake-up wait entirely, point a free uptime monitor (e.g. cron-job.org or
-  UptimeRobot) at `https://<backend>/actuator/health` every 10 minutes; Render's 750 free
-  hours a month cover one service running all month.
+- **Pages and API calls**: browser → Vercel → (`/api/*` forwarded) → Render. The browser
+  only ever talks to the Vercel address, so the session cookie is an ordinary first-party
+  cookie.
+- **Live games**: browser → `wss://chess960-backend.onrender.com/ws/games/<id>` directly,
+  because Vercel can't forward WebSockets. A game connection proves who it is with the seat
+  token in its address, not with a cookie, so connecting across sites is safe.
+  `ALLOWED_ORIGINS` still limits which sites can open one.
+- **Database**: Render → Supabase over TLS (`sslmode=require`), through Supabase's session
+  pooler.
+
+## Free-plan limits
+
+- **Render sleeps after 15 minutes without traffic.**
+  - The next request waits about 30-60 seconds while it starts again.
+  - Anything kept only in memory (live games, today's cached lesson) is cleared.
+  - An open game pings the server every 4 minutes, so a game in progress keeps it awake.
+  - To avoid the wait entirely, point a free uptime monitor (such as UptimeRobot or
+    cron-job.org) at `https://chess960-backend.onrender.com/actuator/health` every 10
+    minutes. Render's 750 free hours a month are enough for one service running
+    constantly.
 - **Supabase pauses a free project after a week with no activity.** Restore it from the
-  dashboard. The uptime monitor above also keeps it active, since the health check queries
-  the database.
+  Supabase dashboard. An uptime monitor also prevents this, because the health check
+  queries the database.
 
-## 1. Supabase (database)
+## Setting up your own copy
 
-1. Create a project. Pick a region near the Render region you'll use; save the database
-   password somewhere safe.
-2. **Project Settings → Data API:** turn the Data API off. This app doesn't use it, and it
-   would otherwise expose tables over HTTP. (The app also keeps its tables in their own
-   `chess960` schema, which the Data API doesn't publish, as a second safeguard.)
-3. **Connect** (top bar) → **Session pooler** (not "Direct connection", which is IPv6-only,
-   and not "Transaction pooler"). Note the host, port, database and user. You'll need:
+Do these in order: the backend needs the database details, and the frontend needs the
+backend's address.
+
+### 1. Supabase (database)
+
+1. Create a project. Choose a region close to the Render region you'll use, and save the
+   database password.
+2. In **Project Settings → Data API**, turn the Data API off. The app doesn't use it, and it
+   would otherwise make tables reachable over HTTP. As a second safeguard, the app keeps its
+   tables in their own `chess960` schema, which the Data API doesn't publish.
+3. Click **Connect** (top bar) and choose **Session pooler**. Don't choose "Direct
+   connection", which only works over IPv6, or "Transaction pooler". From the details shown,
+   build these three values:
    - `DB_URL` = `jdbc:postgresql://<host>:5432/postgres?sslmode=require&currentSchema=chess960`
    - `DB_USER` = the pooler user, which looks like `postgres.<project-ref>`
-   - `DB_PASSWORD` = the database password from step 1
+   - `DB_PASSWORD` = the password from step 1
 
-## 2. Render (backend)
+The tables are created automatically (by Flyway) the first time the backend starts. To see
+them later, open **Table Editor** in Supabase and switch the schema dropdown from `public`
+to `chess960`. Accounts are in the `users` table.
 
-1. **New → Blueprint**, connect the GitHub repo. Render reads `render.yaml` from the repo
-   root and creates the `chess960-backend` web service.
-2. Fill in `DB_URL`, `DB_USER` and `DB_PASSWORD` from step 1 when asked. The other settings
-   (`DB_SCHEMA`, `SECURE_COOKIE`, `ALLOWED_ORIGINS`) come from `render.yaml`.
-3. Wait for the first deploy (the Docker build takes several minutes), then open
-   `https://<service>.onrender.com/actuator/health`; it should say `{"status":"UP"}`.
-4. If the service URL isn't exactly `https://chess960-backend.onrender.com`, put the real
-   one in `frontend/vercel.json` (the `/api` rewrite) and use it for `VITE_BACKEND_WS_URL`
-   below.
+### 2. Render (backend)
 
-## 3. Vercel (frontend)
+1. Choose **New → Blueprint** and connect the GitHub repository. Render reads `render.yaml`
+   from the repository root and creates the `chess960-backend` web service.
+2. When asked, fill in `DB_URL`, `DB_USER` and `DB_PASSWORD` from step 1. The other
+   settings come from `render.yaml`:
+   - `DB_SCHEMA=chess960`: use the `chess960` schema.
+   - `SECURE_COOKIE=true`: only send the login cookie over HTTPS.
+   - `ALLOWED_ORIGINS=https://*.vercel.app`: which sites may open game connections.
+   - `APP_BASE_URL`: the frontend's address, used in links inside emails.
+3. Wait for the first deploy (the Docker build takes several minutes). Then open
+   `https://<service>.onrender.com/actuator/health`, which should show `{"status":"UP"}`.
+4. If the service address isn't exactly `https://chess960-backend.onrender.com`, put the
+   real one in `frontend/vercel.json` (the `/api` rewrite) and use it for
+   `VITE_BACKEND_WS_URL` in the next step.
 
-1. **Add New → Project**, import the GitHub repo.
-2. **Root Directory:** `frontend`. The framework (Vite) and build settings come from
+### 3. Vercel (frontend)
+
+1. Choose **Add New → Project** and import the GitHub repository.
+2. Set **Root Directory** to `frontend`. The framework (Vite) and build settings come from
    `frontend/vercel.json`.
-3. **Environment variable:** `VITE_BACKEND_WS_URL` = `wss://<service>.onrender.com` (game
-   WebSockets connect straight to Render, since Vercel can't proxy them).
-4. Deploy. Your shareable links are `https://<project>.vercel.app/play/<game id>`.
+3. Add the environment variable `VITE_BACKEND_WS_URL` = `wss://<service>.onrender.com`,
+   which tells the game page where to open its WebSocket connection.
+4. Deploy. Game invite links look like `https://<project>.vercel.app/play/<game id>`.
 
-## 4. Email (optional: sign-up confirmation)
+If you later add a custom domain, add it to `ALLOWED_ORIGINS` on Render, separated by
+commas, for example `https://*.vercel.app,https://chess960.example.com`.
+
+### 4. Email confirmation (optional)
 
 Without an email service, which is how the live site runs, signing up creates the account
-and signs it in straight away. To require people to confirm their address first, connect
-[Brevo](https://www.brevo.com) (free plan: 300 emails/day). Once the key is set, sign-up
-emails a one-time link and the account is only created when it's opened.
+and signs in straight away. To require new users to confirm their email address first,
+connect [Brevo](https://www.brevo.com) (free plan: 300 emails a day). Sign-up then emails a
+one-time link, and the account is only created when it's opened.
 
-1. Create a Brevo account, then **Senders, Domains & Dedicated IPs → Senders** and add
-   and verify the address emails should come from.
-2. **SMTP & API → API Keys → Generate a new API key**.
-3. On Render, `chess960-backend` → **Environment**, add `BREVO_API_KEY` (the key) and
-   `MAIL_FROM_ADDRESS` (the verified sender), then save and redeploy.
+1. Create a Brevo account. Under **Senders, Domains & Dedicated IPs → Senders**, add and
+   verify the address emails should come from.
+2. Under **SMTP & API → API Keys**, generate an API key.
+3. On Render, open `chess960-backend` → **Environment**, add `BREVO_API_KEY` (the key) and
+   `MAIL_FROM_ADDRESS` (the verified sender), and save. If Render asks, choose to redeploy
+   so the change takes effect.
 
-If you later add a custom domain, add it to `ALLOWED_ORIGINS` on Render
-(comma-separated, e.g. `https://*.vercel.app,https://chess960.example.com`).
+## All backend settings
 
-## How the pieces connect
+These are environment variables read by `backend/src/main/resources/application.yml`.
+Every one has a default that works for local development.
 
-- Page and REST calls: browser → Vercel → (rewrite) `/api/*` → Render. Because the browser
-  only ever talks to the Vercel domain for `/api`, the session cookie is a normal
-  first-party cookie.
-- Live games: browser → `wss://<service>.onrender.com/ws/games/<id>?token=...` directly. A
-  socket authenticates with the seat token in its URL, not a cookie, so cross-site
-  connections are safe; `ALLOWED_ORIGINS` still limits which sites may open one.
-- Render → Supabase over TLS (`sslmode=require`), through Supabase's session pooler.
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `DB_URL` | built from `DB_HOST`, `DB_PORT`, `DB_NAME` | Full JDBC address of the database |
+| `DB_HOST`, `DB_PORT`, `DB_NAME` | `localhost`, `5432`, `chess960` | Database address, used when `DB_URL` isn't set |
+| `DB_USER`, `DB_PASSWORD` | `chess960`, `chess960` | Database login |
+| `DB_SCHEMA` | `public` | Schema for the app's tables |
+| `DB_POOL_SIZE` | `5` | Maximum database connections |
+| `PORT` | `8080` | Port the backend listens on |
+| `STOCKFISH_PATH` | `stockfish` | Path to the Stockfish program |
+| `ALLOWED_ORIGINS` | `*` | Sites allowed to open game WebSocket connections |
+| `SECURE_COOKIE` | `false` | Send the login cookie only over HTTPS. Turn on wherever HTTPS is used |
+| `APP_BASE_URL` | `http://localhost:5173` | Frontend address used in emailed links |
+| `BREVO_API_KEY`, `MAIL_FROM_ADDRESS` | empty | Turn on email confirmation for sign-up (both needed) |
+| `MAIL_FROM_NAME` | `Chess960` | Sender name on emails |
+| `LOG_EMAILS_WHEN_UNCONFIGURED` | `false` | With no email service, write confirmation links to the log instead of skipping confirmation. For trying that flow locally |
