@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { usePreferences } from "../preferencesContext";
-import { squaresFromFen } from "./fen";
+import { kingToMoveSquare, squaresFromFen } from "./fen";
 import { fileOf, rankOf, squareAt, type LegalMove } from "./types";
 import "./Chessboard.css";
 
@@ -53,6 +53,9 @@ interface ChessboardProps {
   arrows?: BoardArrow[];
   /** The move that led to this position, highlighted on both its squares. */
   lastMove?: { from: string; to: string } | null;
+  /** The side to move is in check - its king gets a red glow. The parent knows this from
+   * the server (see sanGivesCheck); the board doesn't work out checks itself. */
+  inCheck?: boolean;
   /** Ignores all clicks/drags - used once a quiz step has been graded, so the board stops
    * taking input while the answer is on screen. */
   disabled?: boolean;
@@ -74,6 +77,7 @@ export function Chessboard({
   markers,
   arrows = [],
   lastMove = null,
+  inCheck = false,
   disabled = false,
 }: ChessboardProps) {
   const squares = useMemo(() => squaresFromFen(fen), [fen]);
@@ -88,6 +92,8 @@ export function Chessboard({
   // Marker ids must be unique in the document, in case two boards are ever on one page.
   const arrowId = useId().replace(/:/g, "");
   const entryOffsets = useBackRankEntryAnimation(fen, animateEntry && prefs.animations);
+
+  const checkedKing = inCheck ? kingToMoveSquare(fen) : null;
 
   const destinations = useMemo(() => {
     const from = drag?.from ?? selected;
@@ -208,7 +214,24 @@ export function Chessboard({
         role="group"
         aria-label="Chess board"
       >
+        <defs>
+          <radialGradient id={`${arrowId}-check`}>
+            <stop offset="0%" className="check-glow-inner" />
+            <stop offset="45%" className="check-glow-mid" />
+            <stop offset="100%" className="check-glow-outer" />
+          </radialGradient>
+        </defs>
         {renderSquares(orientation, handleSquareClick, selected, markers, lastMove)}
+        {checkedKing && (
+          <rect
+            data-check={checkedKing}
+            {...squareToXY(checkedKing)}
+            width={SIZE}
+            height={SIZE}
+            fill={`url(#${arrowId}-check)`}
+            className="square-check"
+          />
+        )}
         {renderCoordinates(orientation)}
         {Object.entries(squares).map(([square, piece]) => {
           if (!piece) return null;

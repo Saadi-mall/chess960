@@ -36,8 +36,7 @@
   gap: var(--space-1);
   padding: var(--space-4);
   border-radius: 10px;
-  background: var(--color-raised);
-  border: 1px solid var(--color-border);
+  background: var(--color-bg);
 }
 
 .stat-value {
@@ -67,7 +66,6 @@
 
 .results-table td {
   padding: var(--space-2);
-  border-bottom: 1px solid var(--color-border);
   font-variant-numeric: tabular-nums;
 }
 
@@ -89,9 +87,11 @@
 
 .account-menu .secondary-button,
 .account-menu .primary-button {
+  display: inline-block;
   width: auto;
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-sm);
+  white-space: nowrap;
 }
 
 .account-menu a {

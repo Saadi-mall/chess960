@@ -22,6 +22,12 @@ final class GameRoom {
         return all;
     }
 
+    /** Whether any open connection is playing this color - one player can briefly have two,
+     * e.g. after a refresh, when the new page connects before the old one's close arrives. */
+    boolean hasPlayer(Color color) {
+        return players.containsValue(color);
+    }
+
     boolean isEmpty() {
         return players.isEmpty() && spectators.isEmpty();
     }

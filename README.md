@@ -4,8 +4,17 @@ A Chess960 (Fischer Random) web app: play it live with a friend, set up any star
 position and analyze it with Stockfish, or work through a daily lesson - optionally with an
 account that keeps your streak and results.
 
-**Live: https://chess960-rho.vercel.app** (free hosting - the first visit after a quiet
-spell can take a minute while the backend wakes up).
+**Live: https://chess960-rho.vercel.app**
+
+> **Note for reviewers: the first load can take up to a minute.** The backend is on
+> Render's free plan, which puts it to sleep after 15 minutes with no visitors. The first
+> request after that wakes it up, which takes about 30-60 seconds. Until then the page
+> loads but the board, lesson or game may sit on "Loading" / "Connecting". After that it's
+> full speed. To wake it before trying the site, open
+> https://chess960-backend.onrender.com/actuator/health and wait for `{"status":"UP"}`.
+> Live games and today's lesson are kept in memory, so they start fresh after a sleep. A
+> game that's open in a browser keeps the server awake on its own (it pings every 4
+> minutes). Running locally with `docker compose up --build` has none of this.
 
 Built for a Chess.com take-home. See [docs/DECISIONS.md](docs/DECISIONS.md) for the main
 design decisions, trade-offs, time breakdown, and what's next; see
@@ -34,7 +43,9 @@ for normal use - the frontend talks to the backend through nginx, which proxies 
   WebSockets: the server validates every move, runs the clocks, and detects every way a
   game can end (checkmate, stalemate, insufficient material, the 50-move rule, threefold
   repetition, resignation, timeout). Supports resigning, draw offers, and rematches (with
-  colors swapped), and rejoining after a refresh.
+  colors swapped), and rejoining after a refresh. A king in check is highlighted, each
+  player bar shows the pieces that side has captured with its material lead (e.g. +3),
+  and a green dot shows whether each player is connected.
 - **Analyze** - set up any of the 960 legal starting positions, see an overview card of
   computed facts about it (undefended pawns, bishops already on a long diagonal, how many
   of each side's own pieces are blocking their fastest castling route, a weakest-square
@@ -48,7 +59,9 @@ for normal use - the frontend talks to the backend through nginx, which proxies 
   data or Stockfish's actual choices. Then a button to play that position with a friend.
 - **Accounts** - sign up with an email and password to keep your daily-lesson streak and
   results on the server (`/progress`); signed-in answers are graded by the server. Guests
-  keep a streak in their browser instead.
+  keep a streak in their browser instead. On the live site an account works straight
+  away; email confirmation is built in and switches on once an email service is configured
+  (see [docs/DEPLOY.md](docs/DEPLOY.md)).
 - **Chess.com stats** (optional, its own tab) - look up a Chess.com
   player's public game history and see simple Chess960 stats: total games, win/loss/draw,
   win rate, and a breakdown by time class.
@@ -61,8 +74,9 @@ by Colin M. L. Burnett, licensed
 via [lichess-org/lila](https://github.com/lichess-org/lila/tree/master/public/piece/cburnett)
 (itself redistributing the original files under the same license); the SVGs live at
 `frontend/public/pieces/cburnett/`. No other third-party visual assets are used - the board
-itself is custom SVG and the UI typeface is [Source Serif 4](https://fonts.google.com/specimen/Source+Serif+4)
-from Google Fonts (SIL Open Font License).
+itself is custom SVG, and the typefaces are [Fraunces](https://fonts.google.com/specimen/Fraunces)
+(headings) and [Manrope](https://fonts.google.com/specimen/Manrope) (text) from Google
+Fonts, both under the SIL Open Font License.
 
 ## Stack
 
@@ -74,9 +88,10 @@ in `k8s/` for a cluster deployment.
 
 ## Running the tests
 
-Backend (100 tests - the rules engine's perft suite, castling edge cases, SAN notation, lesson building and grading, accounts and streaks, the position
-analyzer, the game/clock/draw/rematch logic, the Stockfish UCI wrapper against the real
-binary, and the Chess.com import's classification logic):
+Backend (108 tests - the rules engine's perft suite, castling edge cases, SAN notation,
+lesson building and grading, accounts and streaks, the position analyzer, the
+game/clock/draw/rematch logic, player connection tracking, the Stockfish UCI wrapper
+against the real binary, and the Chess.com import's classification logic):
 
 ```bash
 cd backend
@@ -87,8 +102,9 @@ This needs a JDK 21 and a `stockfish` binary on your `PATH` (`brew install stock
 macOS); without Stockfish, everything except `StockfishEngineTest` still passes.
 
 Frontend (type checking, linting, a production build, and a small Vitest + React Testing
-Library suite covering the Learn tab's quiz interaction and the move-list back/forward
-logic - everything else was verified
+Library suite covering the Learn tab's quiz interaction, the move-list back/forward
+logic and arrow keys, and the captured-pieces / check-highlight helpers - everything else
+was verified
 manually in-browser through each tab, including click-to-move, drag-to-move, the promotion
 picker, board flipping, and mobile widths):
 

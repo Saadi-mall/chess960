@@ -56,10 +56,12 @@ Free-tier limits to know about:
    WebSockets connect straight to Render, since Vercel can't proxy them).
 4. Deploy. Your shareable links are `https://<project>.vercel.app/play/<game id>`.
 
-## 4. Email (sign-up verification)
+## 4. Email (optional: sign-up confirmation)
 
-New accounts must confirm their email, sent through [Brevo](https://www.brevo.com) (free
-plan: 300 emails/day). Until it's set up, the live site refuses sign-ups.
+Without an email service, which is how the live site runs, signing up creates the account
+and signs it in straight away. To require people to confirm their address first, connect
+[Brevo](https://www.brevo.com) (free plan: 300 emails/day). Once the key is set, sign-up
+emails a one-time link and the account is only created when it's opened.
 
 1. Create a Brevo account, then **Senders, Domains & Dedicated IPs → Senders** and add
    and verify the address emails should come from.

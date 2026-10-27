@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Chessboard } from "../board/Chessboard";
+import { sanGivesCheck } from "../board/fen";
+import { materialFromFen } from "../board/material";
 import { ChessPage, IdentityCard, SideCard } from "../layout/ChessPage";
 import { ConfirmDialog } from "../layout/ConfirmDialog";
 import { FlagIcon } from "../layout/icons";
@@ -27,8 +29,15 @@ const STATUS_LABEL: Record<string, string> = {
 
 type Pending = "RESIGN" | "OFFER_DRAW" | null;
 
-export function GameView() {
+/** One fresh GameView per game id. React Router keeps the same component mounted when only
+ * the :gameId param changes (a rematch, or a new game), which would otherwise carry the old
+ * game's seat, join attempt and rematch offer over into the new one. */
+export function GameRoute() {
   const { gameId = "" } = useParams<{ gameId: string }>();
+  return <GameView key={gameId} gameId={gameId} />;
+}
+
+function GameView({ gameId }: { gameId: string }) {
   const navigate = useNavigate();
   const [seat, setSeatState] = useState<StoredSeat | null>(() => getSeat(gameId));
   const [joinError, setJoinError] = useState<string | null>(null);
@@ -74,13 +83,8 @@ export function GameView() {
   useEffect(() => {
     if (!socket.rematchStarted) return;
     const { gameId: newId, color, token } = socket.rematchStarted;
-    const newSeat: StoredSeat = { token, color };
-    setSeat(newId, newSeat);
-    // React Router keeps this same component instance mounted across a param-only
-    // navigation (/play/oldId -> /play/newId), so without this the seat state - and
-    // therefore which color/token the socket connects as - would keep stale data from
-    // the finished game instead of the swapped seat for the new one.
-    setSeatState(newSeat);
+    // The new game's page (a fresh GameView, see GameRoute) picks the seat up from storage.
+    setSeat(newId, { token, color });
     navigate(`/play/${newId}`);
   }, [socket.rematchStarted, navigate]);
 
@@ -97,6 +101,7 @@ export function GameView() {
     const name = !isPlayer ? side : color === myColor ? "You" : "Opponent";
     const connected = state ? (color === "white" ? state.whiteConnected : state.blackConnected) : false;
     const ticking = state?.status === "IN_PROGRESS" && state.turn === color;
+    const shownFen = state && (state.fenHistory[nav.ply] ?? state.fen);
     return (
       <PlayerBar
         color={color}
@@ -104,6 +109,7 @@ export function GameView() {
         detail={isPlayer ? side : connected ? "connected" : "not connected"}
         online={connected}
         active={ticking}
+        material={shownFen ? materialFromFen(shownFen)[color] : undefined}
         clock={
           state && <ClockDisplay millis={color === "white" ? state.whiteMillis : state.blackMillis} isTicking={ticking} />
         }
@@ -293,6 +299,7 @@ export function GameView() {
             animateEntry={state.moveHistory.length === 0}
             disabled={!nav.isLatest}
             lastMove={nav.ply > 0 ? state.moves[nav.ply - 1] : null}
+            inCheck={sanGivesCheck(state.moveHistory[nav.ply - 1])}
           />
         }
         bottom={bar(bottomColor)}

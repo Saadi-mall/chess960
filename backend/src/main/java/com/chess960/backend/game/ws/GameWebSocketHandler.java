@@ -163,14 +163,19 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         if (gameId == null) return;
 
         GameRoom room = broadcaster.existingRoom(gameId);
+        boolean stillConnected = false;
         if (room != null) {
             room.players.remove(session);
             room.spectators.remove(session);
+            // The same player may already have a newer connection open (a refresh or a
+            // rematch reconnects before this old close arrives) - they're only gone if not.
+            stillConnected = color != null && room.hasPlayer(color);
             broadcaster.removeRoomIfEmpty(gameId, room);
         }
 
         if (color != null) {
-            gameService.find(gameId).ifPresent(g -> g.setConnected(color, false));
+            boolean connected = stillConnected;
+            gameService.find(gameId).ifPresent(g -> g.setConnected(color, connected));
             broadcaster.broadcastState(gameId);
         }
     }

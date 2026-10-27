@@ -177,15 +177,18 @@ today's lesson, so a streak can't be faked or backfilled from the browser. Strea
 computed from the stored dates (`Streaks`); a streak ending yesterday still counts until
 today's lesson is missed. Guests keep the old per-browser streak.
 
-**Accounts only exist once their email is confirmed.** Signing up stores a *pending*
-sign-up (password already BCrypt-hashed) and emails a one-time link; the `users` row is
-only created when that link is opened, so an address nobody controls never becomes an
-account. Like sessions, only the SHA-256 of the link's token is stored; links expire after
-24 hours, and repeat sign-ups within a minute don't send another email (so the form can't
-be used to flood someone's inbox). Email goes out through Brevo's HTTP API rather than
-SMTP, since free hosts often block outgoing mail ports. With no email configured, local
-development logs the link instead, and production refuses sign-ups rather than ever
-writing a working link into its logs.
+**Email confirmation is built in but only on when email can be sent.** With an email
+service configured, signing up stores a *pending* sign-up (password already
+BCrypt-hashed) and emails a one-time link; the `users` row is only created when that link
+is opened, so an address nobody controls never becomes an account. Like sessions, only the
+SHA-256 of the link's token is stored; links expire after 24 hours, and repeat sign-ups
+within a minute don't send another email (so the form can't be used to flood someone's
+inbox). Email goes out through Brevo's HTTP API rather than SMTP, since free hosts often
+block outgoing mail ports. Local development logs the link instead of sending it. The live
+site has no email service (setting one up meant a sender domain and another account), so
+there sign-up creates the account immediately - the trade-off is that an account's email
+isn't proven to belong to its owner, which only matters once there's something like
+password reset to send to it.
 
 **Finished games can be analyzed.** The game state now carries each move in from/to form
 as well as SAN. "Analyze this game" opens `/analyze?position=<n>&moves=e2e4,e7e5,...` -
@@ -196,6 +199,21 @@ looked at, so a long game doesn't trigger dozens of searches up front.
 **The analysis board doesn't wait for Stockfish.** A move in Analyze makes two requests: the rules-only `/api/positions/move` (~30ms) whose
 position goes on the board immediately, then `/api/analysis/evaluate` in the background,
 whose result is filled in when it arrives (and dropped if that move was undone meanwhile).
+
+**Check and captured pieces come from server data, not frontend rules.** The board
+highlights the checked king when the server's SAN for the last move ends in `+` or `#`;
+the frontend never works out check itself. Captured pieces and the material lead (+N) are
+counted from the FEN: whatever is missing from each side's starting army (identical in
+every Chess960 position) was captured, and the lead is the point difference of what's on
+the board. That's reading data, like drawing the pieces, not rules. One known
+approximation: after a promotion, the promoted pawn shows as "captured", though the +N
+stays exact.
+
+**Look: minimal, two accents.** The panels sit on the page without outlines, shadows or
+divider lines; space separates things instead. Green stays the main accent (buttons, the
+active tab, the board) and amber is the second, kept for "now": the running clock, the
+current move in the list, and section labels. Headings are Fraunces (a serif, per the
+brief), text is Manrope.
 
 ## Bugs perft (and other testing) actually caught
 
@@ -293,6 +311,12 @@ decorative:
   pieces, so any destination with a piece on it (a capture, or the own rook for castling)
   was hidden. Hints are now drawn above the pieces, as a ring on occupied squares.
 
+- **"Not connected" next to a player who was clearly playing.** After a rematch, a new game
+  or a refresh, the page opens its new connection before the old one's close reaches the
+  server, and the late close marked that player as disconnected. The server now only marks
+  a player gone when none of their connections is still open (with a test that replays
+  that exact order). The page is also rebuilt from scratch for each game id, so nothing
+  from the previous game's page carries over.
 - **The analysis board lagged behind every move.** Each move went to an endpoint that ran
   Stockfish's 800ms search before answering, so the piece only moved about a second after
   it was played. Split into a fast rules request and a background evaluation (see above).

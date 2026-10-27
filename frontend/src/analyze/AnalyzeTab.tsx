@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Chessboard } from "../board/Chessboard";
+import { sanGivesCheck } from "../board/fen";
+import { materialFromFen } from "../board/material";
 import type { LegalMove } from "../board/types";
 import { ChessPage, IdentityCard, SideCard } from "../layout/ChessPage";
 import { ResetIcon } from "../layout/icons";
@@ -163,6 +165,7 @@ export function AnalyzeTab() {
       name={color === "white" ? "White" : "Black"}
       detail={analyzing && !gameOver && turn === color ? "to move" : undefined}
       active={analyzing && !gameOver && turn === color}
+      material={analyzing && viewed ? materialFromFen(viewed.fen)[color] : undefined}
     />
   );
   const bottomColor = flipped ? "black" : "white";
@@ -296,6 +299,7 @@ export function AnalyzeTab() {
           animateEntry={moves.length === 0}
           disabled={!nav.isLatest}
           lastMove={viewed.lastMove ?? null}
+          inCheck={sanGivesCheck(moves[nav.ply - 1])}
         />
       }
       bottom={bar(bottomColor)}

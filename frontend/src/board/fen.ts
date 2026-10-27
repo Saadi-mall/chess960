@@ -24,3 +24,18 @@ export function squaresFromFen(fen: string): Squares {
 
   return squares;
 }
+
+/** Whether a move's SAN (from the server) says it gave check: "+" or "#" at the end. The
+ * server decides that; the board only uses it to highlight the checked king. */
+export function sanGivesCheck(san: string | null | undefined): boolean {
+  return !!san && /[+#]$/.test(san);
+}
+
+/** The square of the king whose side is to move, from the FEN's piece placement and its
+ * active-color field. */
+export function kingToMoveSquare(fen: string): string | null {
+  const white = fen.trim().split(/\s+/)[1] !== "b";
+  const king = white ? "K" : "k";
+  const entry = Object.entries(squaresFromFen(fen)).find(([, piece]) => piece === king);
+  return entry ? entry[0] : null;
+}

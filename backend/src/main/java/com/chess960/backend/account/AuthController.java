@@ -37,14 +37,20 @@ public class AuthController {
 
     public record VerifyRequest(String token) {}
 
-    /** A sign-up waiting for its email link - nothing to sign in with yet. */
-    public record PendingResponse(String email) {}
+    /**
+     * Either {@code user} (the account was created and signed in) or {@code pendingEmail}
+     * (a confirmation link was emailed there; nothing to sign in with yet).
+     */
+    public record SignUpResponse(UserDto user, String pendingEmail) {}
 
     @PostMapping("/api/auth/register")
-    public ResponseEntity<PendingResponse> register(@RequestBody RegisterRequest request) {
-        auth.register(request.email(), request.password(), request.displayName());
-        return ResponseEntity.status(HttpStatus.ACCEPTED)
-                .body(new PendingResponse(request.email().trim().toLowerCase(java.util.Locale.ROOT)));
+    public ResponseEntity<SignUpResponse> register(@RequestBody RegisterRequest request) {
+        return auth.register(request.email(), request.password(), request.displayName())
+                .map(session -> ResponseEntity.status(HttpStatus.CREATED)
+                        .header(HttpHeaders.SET_COOKIE, cookies.create(session.token()).toString())
+                        .body(new SignUpResponse(UserDto.of(session.user()), null)))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.ACCEPTED)
+                        .body(new SignUpResponse(null, request.email().trim().toLowerCase(java.util.Locale.ROOT))));
     }
 
     @PostMapping("/api/auth/verify-email")

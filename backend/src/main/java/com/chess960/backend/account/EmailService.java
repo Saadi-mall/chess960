@@ -13,9 +13,9 @@ import org.springframework.web.client.RestClientException;
 /**
  * Sends account emails through Brevo's HTTP API (an HTTP API rather than SMTP because free
  * hosts commonly block outgoing mail ports). With no API key configured it either logs
- * the message - for local development, so sign-up can be tried without an email account -
- * or, where that's switched off (production), refuses, so verification links never end up
- * in a log.
+ * the message - for local development, so the confirmation flow can be tried without an
+ * email account - or, where that's switched off (production), reports itself unavailable,
+ * so sign-up skips confirmation rather than ever writing a working link into a log.
  */
 @Service
 public class EmailService implements EmailSender {

@@ -62,12 +62,18 @@ public class AuthService {
     public record NewSession(UserEntity user, String token) {}
 
     /**
-     * Starts a sign-up: nothing can sign in yet. The details (password already hashed) wait
-     * in pending_signups and a one-time link is emailed; the account is only created when
-     * that link is opened ({@link #verifyEmail}). Signing up again replaces any earlier
-     * pending sign-up for the same email.
+     * Signs someone up. Whether their email is confirmed first depends on whether email can
+     * be sent ({@link EmailSender#available}):
+     *
+     * <ul>
+     *   <li>Yes: nothing can sign in yet. The details (password already hashed) wait in
+     *       pending_signups and a one-time link is emailed; the account is only created when
+     *       that link is opened ({@link #verifyEmail}). Returns empty.
+     *   <li>No (no email service configured on the live site): the account is created and
+     *       signed in straight away, unconfirmed. Returns its session.
+     * </ul>
      */
-    public void register(String emailAddress, String password, String displayName) {
+    public Optional<NewSession> register(String emailAddress, String password, String displayName) {
         String normalizedEmail = normalize(emailAddress);
         if (!EMAIL.matcher(normalizedEmail).matches() || normalizedEmail.length() > 254) {
             throw new AccountException(HttpStatus.BAD_REQUEST, "Enter a valid email address");
@@ -86,12 +92,12 @@ public class AuthService {
             throw new AccountException(HttpStatus.CONFLICT, "An account with that email already exists");
         }
         if (!email.available()) {
-            throw new AccountException(HttpStatus.SERVICE_UNAVAILABLE, "Sign-up is unavailable right now");
+            return Optional.of(createAccount(normalizedEmail, name, encoder.encode(password)));
         }
         // Don't let repeated submissions turn this into a way to flood someone's inbox.
         boolean justSent = pending.findByEmail(normalizedEmail).stream()
                 .anyMatch(p -> p.createdAt().isAfter(Instant.now().minus(RESEND_COOLDOWN)));
-        if (justSent) return;
+        if (justSent) return Optional.empty();
 
         pending.deleteByEmail(normalizedEmail);
         String token = randomToken();
@@ -105,6 +111,7 @@ public class AuthService {
                         + appBaseUrl + "/verify-email?token=" + token + "\n\n"
                         + "The link works once and expires in 24 hours. If you didn't sign up, ignore this email"
                         + " - no account is created without it.");
+        return Optional.empty();
     }
 
     /** Opens an emailed sign-up link: creates the account and signs it in. */
@@ -119,11 +126,16 @@ public class AuthService {
         if (users.findByEmail(signup.email()).isPresent()) {
             throw new AccountException(HttpStatus.CONFLICT, "That email is already confirmed - log in instead");
         }
+        return createAccount(signup.email(), signup.displayName(), signup.passwordHash());
+    }
+
+    private NewSession createAccount(String normalizedEmail, String displayName, String passwordHash) {
         try {
-            UserEntity user = users.save(new UserEntity(signup.email(), signup.displayName(), signup.passwordHash()));
+            UserEntity user = users.save(new UserEntity(normalizedEmail, displayName, passwordHash));
             return new NewSession(user, startSession(user));
         } catch (DataIntegrityViolationException e) {
-            throw new AccountException(HttpStatus.CONFLICT, "That email is already confirmed - log in instead");
+            // Two sign-ups with the same email at once - the unique constraint catches the second.
+            throw new AccountException(HttpStatus.CONFLICT, "An account with that email already exists");
         }
     }
 

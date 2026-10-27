@@ -8,7 +8,7 @@ import { AnalyzeTab } from "./analyze/AnalyzeTab";
 import { ChessComImportPage } from "./chesscom/ChessComImportPage";
 import { LearnTab } from "./learn/LearnTab";
 import { CreateGameForm } from "./play/CreateGameForm";
-import { GameView } from "./play/GameView";
+import { GameRoute } from "./play/GameView";
 import { PreferencesProvider } from "./preferences";
 import { ThemeToggle } from "./ThemeToggle";
 import "./App.css";
@@ -98,7 +98,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Navigate to="/play" replace />} />
               <Route path="/play" element={<CreateGameForm />} />
-              <Route path="/play/:gameId" element={<GameView />} />
+              <Route path="/play/:gameId" element={<GameRoute />} />
               <Route path="/analyze" element={<AnalyzeTab />} />
               <Route path="/learn" element={<LearnTab />} />
               <Route path="/chesscom-import" element={<ChessComImportPage />} />

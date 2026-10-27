@@ -38,7 +38,7 @@ class AuthServiceTest {
 
     /** Signs up and returns the token from the emailed link. */
     private String signUpAndReadLink(String address) {
-        auth.register(address, "correct horse", "Ann");
+        assertTrue(auth.register(address, "correct horse", "Ann").isEmpty(), "no account until the link is opened");
         ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
         verify(email).send(eq("a@b.co"), anyString(), body.capture());
         Matcher link = Pattern.compile("https://chess960\\.example/verify-email\\?token=([A-Za-z0-9_-]+)").matcher(body.getValue());
@@ -100,10 +100,12 @@ class AuthServiceTest {
     }
 
     @Test
-    void refusesSignUpWhenEmailCantBeSent() {
+    void withoutAnEmailServiceTheAccountIsCreatedStraightAway() {
         when(email.available()).thenReturn(false);
-        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, assertThrows(AccountException.class,
-                () -> auth.register("a@b.co", "correct horse", "Ann")).status());
+        AuthService.NewSession session = auth.register("A@B.co", "correct horse", "Ann").orElseThrow();
+        assertEquals("a@b.co", session.user().email());
+        verify(email, never()).send(anyString(), anyString(), anyString());
+        verify(pending, never()).save(any());
     }
 
     @Test

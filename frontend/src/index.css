@@ -5,9 +5,10 @@
      [data-theme="light"] below is the only other state.
 
      Cool slate backgrounds in three levels for depth: bg (the page) < panel (cards) <
-     raised (buttons, inputs, selected states). Green is the accent; "correct" uses a
-     separate mint so it never reads as just "accent", and board selections are yellow so
-     they show up on the green squares. */
+     raised (buttons, inputs, selected states). Green is the main accent (actions, the
+     active tab); amber is the second, used sparingly for "now" - the running clock, the
+     current move, section labels. "Correct" uses a separate mint so it never reads as just
+     "accent", and board selections are yellow so they show up on the green squares. */
   --color-bg: #15171c;
   --color-panel: #1d2027;
   --color-raised: #272b34;
@@ -21,6 +22,9 @@
   --color-accent-contrast: #ffffff;
   --color-accent-muted: rgba(129, 182, 76, 0.16);
 
+  --color-accent-2: #e5b05c;
+  --color-accent-2-muted: rgba(229, 176, 92, 0.14);
+
   --color-success: #3ecf8e;
   --color-success-bg: rgba(62, 207, 142, 0.14);
   --color-danger: #f06a5c;
@@ -31,6 +35,7 @@
   --board-highlight: rgba(255, 235, 59, 0.5);
   --board-selected: rgba(255, 235, 59, 0.55);
   --board-last-move: rgba(255, 235, 59, 0.38);
+  --board-check: #ff3b30;
   --board-success: rgba(62, 207, 142, 0.8);
   --board-danger: rgba(240, 90, 76, 0.75);
   --board-hint: rgba(20, 30, 10, 0.3);
@@ -47,8 +52,8 @@
   --side-black: #111317;
   --side-black-text: #e9ebef;
 
-  --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-heading: "Source Serif 4", Georgia, serif;
+  --font-body: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-heading: "Fraunces", Georgia, serif;
 
   /* Type scale */
   --text-xs: 0.75rem;
@@ -75,7 +80,8 @@
 
   font-family: var(--font-body);
   font-size: 16px;
-  line-height: 1.4;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
 }
 
 :root[data-theme="light"] {
@@ -93,6 +99,9 @@
   --color-accent-strong: #4f8628;
   --color-accent-contrast: #ffffff;
   --color-accent-muted: rgba(95, 154, 50, 0.12);
+
+  --color-accent-2: #b5761a;
+  --color-accent-2-muted: rgba(181, 118, 26, 0.12);
 
   --color-success: #13945e;
   --color-success-bg: rgba(19, 148, 94, 0.1);
@@ -124,6 +133,7 @@ h2,
 h3 {
   font-family: var(--font-heading);
   font-weight: 600;
+  letter-spacing: -0.01em;
   margin: 0 0 0.4em;
 }
 

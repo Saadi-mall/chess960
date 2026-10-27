@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Chessboard, type BoardArrow, type SquareMarker } from "../board/Chessboard";
+import { sanGivesCheck } from "../board/fen";
+import { materialFromFen } from "../board/material";
 import { squaresFromFen } from "../board/fen";
 import type { LegalMove } from "../board/types";
 import { ChessPage, IdentityCard, SideCard } from "../layout/ChessPage";
@@ -236,6 +238,7 @@ export function LearnTab() {
           orientation={orientation}
           arrows={arrows}
           lastMove={nav.ply > 0 ? lesson.mainLineSquares[nav.ply - 1] : null}
+          inCheck={sanGivesCheck(lesson.mainLineMoves[nav.ply - 1])}
           disabled
         />
       );
@@ -249,6 +252,8 @@ export function LearnTab() {
       name={color === "white" ? "White" : "Black"}
       detail={sideToMove === color && !answered ? "to move" : undefined}
       active={sideToMove === color && !answered}
+      // Only the plans step's main line can have captures; every other step shows the start.
+      material={step === "PLANS" && lesson ? materialFromFen(lesson.mainLineFens[nav.ply] ?? lesson.fen)[color] : undefined}
     />
   );
 

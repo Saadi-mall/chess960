@@ -30,6 +30,15 @@
   pointer-events: none;
 }
 
+/* The checked king: a red glow under the piece, strongest at the centre. */
+.square-check {
+  pointer-events: none;
+}
+
+.check-glow-inner { stop-color: var(--board-check); stop-opacity: 1; }
+.check-glow-mid { stop-color: var(--board-check); stop-opacity: 0.85; }
+.check-glow-outer { stop-color: var(--board-check); stop-opacity: 0; }
+
 .square-selected,
 .square-marker-selected {
   fill: var(--board-selected);

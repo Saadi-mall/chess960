@@ -22,8 +22,7 @@
   display: flex;
   flex-direction: column;
   padding: var(--space-4);
-  background: var(--color-raised);
-  border: 1px solid var(--color-border);
+  background: var(--color-panel);
   border-radius: 10px;
   color: var(--color-text-muted);
   font-size: var(--text-sm);
@@ -47,8 +46,7 @@
   display: flex;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  background: var(--color-raised);
-  border: 1px solid var(--color-border);
+  background: var(--color-panel);
   border-radius: var(--radius);
   font-size: var(--text-sm);
 }

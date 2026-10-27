@@ -32,7 +32,9 @@ export function AccountPage() {
         await signIn(email, password);
         navigate(returnTo, { replace: true });
       } else {
-        setSentTo(await signUp(email, password, displayName));
+        const pendingEmail = await signUp(email, password, displayName);
+        if (pendingEmail) setSentTo(pendingEmail);
+        else navigate(returnTo, { replace: true });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -123,9 +125,6 @@ export function AccountPage() {
           <button className="big-button" type="submit" disabled={busy}>
             {busy ? "Please wait..." : mode === "login" ? "Log in" : "Create account"}
           </button>
-          {mode === "signup" && (
-            <small className="muted">We'll email you a link to confirm the address before the account is created.</small>
-          )}
         </form>
         </>
         )}

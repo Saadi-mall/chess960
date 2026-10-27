@@ -54,12 +54,15 @@ export function fetchMe(): Promise<User | null> {
   return fetch("/api/auth/me").then(asJson<{ user: User | null }>).then((r) => r.user);
 }
 
-/** Starts a sign-up. No account exists yet: the server emails a link, and the account is
- * created when it's opened (see verifyEmail). Resolves with the address it was sent to. */
-export function register(email: string, password: string, displayName: string): Promise<string> {
-  return post("/api/auth/register", { email, password, displayName })
-    .then(asJson<{ email: string }>)
-    .then((r) => r.email);
+/** What a sign-up led to: either the account straight away (no email service configured,
+ * as on the live site), or a confirmation link emailed to pendingEmail. */
+export interface SignUpResult {
+  user: User | null;
+  pendingEmail: string | null;
+}
+
+export function register(email: string, password: string, displayName: string): Promise<SignUpResult> {
+  return post("/api/auth/register", { email, password, displayName }).then(asJson<SignUpResult>);
 }
 
 /** Opens an emailed sign-up link: creates the account and signs in. */
