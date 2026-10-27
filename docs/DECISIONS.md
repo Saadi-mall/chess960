@@ -25,8 +25,9 @@ The app was built with [Claude Code](https://claude.com/claude-code), Anthropic'
 agent, working under my direction. I wrote the brief (`CLAUDE.md` in this repo is the spec
 I gave it, written before any code existed), reviewed its design choices as it went, tested
 the app myself, asked for changes, and fixed bugs in the code. The agent wrote most of the main codebase, tests,
-infrastructure and documentation. The session transcripts are included with the submission,
-as required.
+infrastructure and documentation. A readable transcript of the whole session is in
+[transcripts/chess960-build-session.md](transcripts/chess960-build-session.md), as
+required.
 
 ### Time
 

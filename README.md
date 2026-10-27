@@ -211,6 +211,8 @@ analysis and lessons.
   and how to set it up again.
 - [k8s/README.md](k8s/README.md): running the app on Kubernetes.
 - [docs/TIME_LOG.md](docs/TIME_LOG.md): the step-by-step log of the first build.
+- [docs/transcripts/](docs/transcripts/chess960-build-session.md): a readable transcript
+  of the whole chat with the AI coding agent that built the app.
 
 ## Credits
 
