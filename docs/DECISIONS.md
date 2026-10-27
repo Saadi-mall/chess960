@@ -24,9 +24,9 @@ Contents:
 The app was built with [Claude Code](https://claude.com/claude-code), Anthropic's AI coding
 agent, working under my direction. I wrote the brief (`CLAUDE.md` in this repo is the spec
 I gave it, written before any code existed), reviewed its design choices as it went, tested
-the app myself, and asked for changes. The agent wrote essentially all of the code, tests,
+the app myself, asked for changes, and fixed bugs in the code. The agent wrote most of the main codebase, tests,
 infrastructure and documentation. The session transcripts are included with the submission,
-as the task asked.
+as required.
 
 ### Time
 
